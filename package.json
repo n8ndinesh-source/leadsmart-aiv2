@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "postinstall": "prisma generate && prisma db push --accept-data-loss && tsx server/seed-build.ts",
+    "postinstall": "node -e \"const fs=require('fs');['dev.db','prisma/dev.db'].forEach(f=>{try{fs.unlinkSync(f)}catch(e){}} )\" && prisma generate && prisma db push --accept-data-loss && tsx server/seed-build.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "lint": "tsc --noEmit"
