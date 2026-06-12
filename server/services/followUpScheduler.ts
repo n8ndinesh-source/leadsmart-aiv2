@@ -1,6 +1,6 @@
 import cron from 'node-cron';
-import { prisma } from '../db';
-import { analyzeLead } from './decisionEngine';
+import { prisma } from '../db.js';
+import { analyzeLead } from './decisionEngine.js';
 
 export const startFollowUpScheduler = () => {
   // Run every 10 minutes to check if any leads need followups

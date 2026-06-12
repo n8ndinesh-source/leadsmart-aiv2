@@ -1,11 +1,11 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { login, signup, forgotPassword } from "../controllers/authController";
+import { login, signup, forgotPassword } from "../controllers/authController.js";
 import { GoogleGenAI, Type } from "@google/genai";
-import { authenticateToken, requireRole, AuthenticatedRequest } from "../middleware/auth";
-import { prisma } from "../db";
-import { analyzeLead } from "../services/decisionEngine";
-import { handleAICommand } from "../services/aiAssistant";
+import { authenticateToken, requireRole, AuthenticatedRequest } from "../middleware/auth.js";
+import { prisma } from "../db.js";
+import { analyzeLead } from "../services/decisionEngine.js";
+import { handleAICommand } from "../services/aiAssistant.js";
 
 const router = Router();
 

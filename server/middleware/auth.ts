@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { prisma } from "../db";
+import { prisma } from "../db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "leadsmart-super-secret-key";
 

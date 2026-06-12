@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { prisma } from "../db";
+import { prisma } from "../db.js";
 
 export interface AIAssistantOutput {
   message: string;
