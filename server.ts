@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
+import { execSync } from "child_process";
 import { createServer as createViteServer } from "vite";
 import bcrypt from "bcryptjs";
 import { prisma } from "./server/db";
@@ -132,8 +133,20 @@ async function startServer() {
   
   startFollowUpScheduler();
 
-  // Auto-seed the accounts on boot
-  await seedDefaultUsers();
+  // Attempt to sync the DB schema
+  if (process.env.DATABASE_URL) {
+    console.log("DATABASE_URL found, attempting to sync database schema...");
+    try {
+      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+      console.log("Database schema synced successfully.");
+      // Auto-seed the accounts on boot
+      await seedDefaultUsers();
+    } catch (dbError) {
+      console.error("Failed to sync database schema:", dbError);
+    }
+  } else {
+    console.log("No DATABASE_URL found. Skipping database schema sync and seeding.");
+  }
 
   // API router
   app.use("/api", apiRouter);
