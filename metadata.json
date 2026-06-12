@@ -1,0 +1,8 @@
+{
+  "name": "Remix: LeadSmart AI",
+  "description": "AI-powered WhatsApp Sales Operating System for SMEs. Phase 1 foundation including landing page, secure authentication, client-admin dashboards, and role-based permissions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

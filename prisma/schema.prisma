@@ -1,0 +1,236 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   // ADMIN, CLIENT
+  createdAt DateTime @default(now())
+  client    Client?
+}
+
+model Client {
+  id                 String        @id @default(uuid())
+  userId             String        @unique
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName        String
+  phone              String?
+  website            String?
+  industry           String?
+  businessType       String?
+  description        String?
+  country            String?
+  state              String?
+  city               String?
+  accountStatus      String        @default("Active") // Active, Suspended, Pending
+  subscriptionStatus String        @default("Trial")  // Trial, Active, Expired, Suspended, Cancelled
+  
+  // WhatsApp Integration credentials
+  whatsappToken              String?
+  whatsappPhoneId            String?
+  whatsappWebhookVerifyToken String?
+  whatsappWebhookUrl         String?
+  whatsappStatus             String?       @default("Inactive") // Active, Inactive, Failed
+
+  // Custom AI Assistant configuration and custom LLM API Key
+  aiProvider                 String?       @default("gemini")
+  aiModel                    String?       @default("gemini-2.0-flash")
+  aiApiKey                   String?
+  aiAssistantName            String?       @default("LeadSmart AI")
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  subscription       Subscription?
+  aiConfiguration    AIConfiguration?
+  testLogs           AITestLogs[]
+  leads              Lead[]
+  aiPermissions      AIPermission[]
+}
+
+model AIConfiguration {
+  id                  String   @id @default(uuid())
+  clientId            String   @unique
+  client              Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  businessProfile     String
+  productIntelligence String
+  salesBehavior       String
+  customerRules       String
+  followUpRules       String
+  responseControl     String
+  businessGoals       String
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model AITestLogs {
+  id                String   @id @default(uuid())
+  clientId          String
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  inputMessage      String
+  aiResponse        String
+  leadScore         Int
+  intent            String
+  recommendedAction String
+  createdAt         DateTime @default(now())
+}
+
+model Subscription {
+  id         String   @id @default(uuid())
+  clientId   String   @unique
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  planName   String   // Starter, Growth, Pro, Enterprise
+  status     String   // Trial, Active, Expired, Suspended, Cancelled
+  startDate  DateTime @default(now())
+  expiryDate DateTime
+  price      Float
+  createdAt  DateTime @default(now())
+}
+
+model Plan {
+  id                 String   @id @default(uuid())
+  name               String   @unique // Starter, Growth, Pro, Enterprise
+  price              Float
+  maxUsers           Int
+  maxLeads           Int
+  maxAiRequests      Int
+  maxWhatsappNumbers Int
+  features           String   // comma-separated list of features
+  createdAt          DateTime @default(now())
+}
+
+model Lead {
+  id               String         @id @default(uuid())
+  clientId         String
+  client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name             String
+  phoneNumber      String
+  email            String?
+  source           String         // WhatsApp / Manual / Import
+  status           String         // New, Contacted, Interested, Qualified, Quotation Sent, Negotiation, Won, Lost
+  priority         String         // Hot, Warm, Cold
+  intentScore      Int?
+  leadScore        Int?
+  aiRecommendation String?
+  
+  // WhatsApp tracking details
+  lastMessageAt      DateTime?
+  whatsappNumber     String?
+  conversationStatus String?        @default("Active")
+  urgencyLevel       String?        // Place holder for Phase 7
+  messages           Message[]
+
+  // Phase 6 Follow-Up Tracking
+  followUpCount          Int            @default(0)
+  lastFollowUpAt         DateTime?
+  nextFollowUpAt         DateTime?
+  followUpStatus         String         @default("None") // None, Pending, Overdue, Completed, Failed
+  lastResponseFromClient Boolean        @default(true) // True if last message was from the lead
+  followUps              FollowUp[]
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  notes            LeadNote[]
+  tags             LeadTag[]
+  activities       LeadActivity[]
+}
+
+model FollowUp {
+  id           String    @id @default(uuid())
+  leadId       String
+  lead         Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  scheduledAt  DateTime
+  sentAt       DateTime?
+  status       String    // Pending, Sent, Failed, Missed
+  message      String
+  followUpType String    // Soft, Medium, Hard, Final
+  createdAt    DateTime  @default(now())
+}
+
+model LeadNote {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  note      String
+  createdAt DateTime @default(now())
+}
+
+model LeadTag {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag       String
+  createdAt DateTime @default(now())
+}
+
+model LeadActivity {
+  id           String   @id @default(uuid())
+  leadId       String
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  activityType String   // e.g. "CREATED", "STATUS_CHANGE", "NOTE_ADDED", "TAG_ADDED", "FOLLOWUP"
+  description  String
+  createdAt    DateTime @default(now())
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  direction String   // IN or OUT
+  content   String
+  timestamp DateTime @default(now())
+}
+
+model AIDecisionLog {
+  id                    String   @id @default(uuid())
+  clientId              String
+  leadId                String
+  leadScore             Int
+  intent                String
+  conversionProbability String
+  nextBestAction        String
+  suggestedReply        String
+  revenueImpact         String
+  createdAt             DateTime @default(now())
+}
+
+model AIActionsLog {
+  id                String   @id @default(uuid())
+  clientId          String
+  actionType        String
+  targetEntity      String   // Lead / FollowUp / Note
+  targetId          String
+  actionDescription String
+  status            String   // Pending / Executed / Failed
+  createdAt         DateTime @default(now())
+}
+
+model AIChatHistory {
+  id        String   @id @default(uuid())
+  clientId  String
+  message   String
+  response  String
+  createdAt DateTime @default(now())
+}
+
+model AIPermission {
+  id             String   @id @default(uuid())
+  clientId       String
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  permissionName String
+  enabled        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([clientId, permissionName])
+}
+
