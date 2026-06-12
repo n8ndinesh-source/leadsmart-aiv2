@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile identity",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "CLIENT"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Client business profile",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "accountStatus": { "type": "string" },
+        "subscriptionStatus": { "type": "string" }
+      },
+      "required": ["userId", "companyName", "accountStatus"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Registered users"
+    },
+    "clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Client business profiles"
+    }
+  }
+}
