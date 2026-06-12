@@ -134,18 +134,14 @@ async function startServer() {
   startFollowUpScheduler();
 
   // Attempt to sync the DB schema
-  if (process.env.DATABASE_URL) {
-    console.log("DATABASE_URL found, attempting to sync database schema...");
-    try {
-      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-      console.log("Database schema synced successfully.");
-      // Auto-seed the accounts on boot
-      await seedDefaultUsers();
-    } catch (dbError) {
-      console.error("Failed to sync database schema:", dbError);
-    }
-  } else {
-    console.log("No DATABASE_URL found. Skipping database schema sync and seeding.");
+  console.log("Attempting to sync database schema...");
+  try {
+    execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+    console.log("Database schema synced successfully.");
+    // Auto-seed the accounts on boot
+    await seedDefaultUsers();
+  } catch (dbError) {
+    console.error("Failed to sync database schema:", dbError);
   }
 
   // API router
