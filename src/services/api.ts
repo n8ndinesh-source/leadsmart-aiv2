@@ -52,11 +52,13 @@ async function request<T>(
   });
 
   let data: any;
-  const text = await response.text();
+    let text = "";
   try {
+    text = await response.text();
     data = text ? JSON.parse(text) : {};
   } catch (error) {
-    data = { error: "Failed to parse response" };
+    console.error("API Error Response Text:", text);
+    data = { error: `Failed to parse response: ${response.status} ${response.statusText}` };
   }
 
   if (!response.ok) {
