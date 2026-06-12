@@ -125,7 +125,7 @@ export async function login(req: Request, res: Response): Promise<any> {
     });
   } catch (error: any) {
     console.error("Login error:", error);
-    return res.status(500).json({ error: "Server error during login." });
+    return res.status(500).json({ error: "Server error during login: " + error.message });
   }
 }
 
