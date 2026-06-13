@@ -134,14 +134,25 @@ async function startServer() {
   startFollowUpScheduler();
 
   // Attempt to sync the DB schema
-  console.log("Attempting to sync database schema...");
-  try {
-    execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-    console.log("Database schema synced successfully.");
-    // Auto-seed the accounts on boot
-    await seedDefaultUsers();
-  } catch (dbError) {
-    console.error("Failed to sync database schema:", dbError);
+  const isServerless = !!(
+    process.env.VERCEL ||
+    process.env.NOW_BUILD_TRIGGER ||
+    process.env.LAMBDA_TASK_ROOT ||
+    process.env.AWS_EXECUTION_ENV
+  );
+
+  if (!isServerless) {
+    console.log("Normal environment detected. Attempting to sync database schema...");
+    try {
+      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+      console.log("Database schema synced successfully.");
+      // Auto-seed the accounts on boot
+      await seedDefaultUsers();
+    } catch (dbError) {
+      console.error("Failed to sync database schema:", dbError);
+    }
+  } else {
+    console.log("Serverless environment detected. Using build-time schema and writable SQLite mirror.");
   }
 
   // API router
