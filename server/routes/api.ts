@@ -782,75 +782,75 @@ router.put("/client/profile", authenticateToken, requireRole(["CLIENT"]), async 
       return res.status(404).json({ error: "Client profile workspace not found." });
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      if (ownerName) {
-        await tx.user.update({
-          where: { id: userId },
-          data: { name: ownerName }
-        });
-      }
-
-      const updatedClient = await tx.client.update({
-        where: { userId },
-        data: {
-          companyName: companyName !== undefined ? companyName : client.companyName,
-          phone: phone !== undefined ? phone : client.phone,
-          website: website !== undefined ? website : client.website,
-          businessType: businessType !== undefined ? businessType : client.businessType,
-          industry: industry !== undefined ? industry : client.industry,
-          description: description !== undefined ? description : client.description,
-          country: country !== undefined ? country : client.country,
-          state: state !== undefined ? state : client.state,
-          city: city !== undefined ? city : client.city,
-          whatsappToken: req.body.whatsappToken !== undefined ? req.body.whatsappToken : client.whatsappToken,
-          whatsappPhoneId: req.body.whatsappPhoneId !== undefined ? req.body.whatsappPhoneId : client.whatsappPhoneId,
-          whatsappWebhookVerifyToken: req.body.whatsappWebhookVerifyToken !== undefined ? req.body.whatsappWebhookVerifyToken : client.whatsappWebhookVerifyToken,
-          whatsappWebhookUrl: req.body.whatsappWebhookUrl !== undefined ? req.body.whatsappWebhookUrl : client.whatsappWebhookUrl,
-          whatsappStatus: req.body.whatsappStatus !== undefined ? req.body.whatsappStatus : client.whatsappStatus,
-          aiProvider: req.body.aiProvider !== undefined ? req.body.aiProvider : client.aiProvider,
-          aiModel: req.body.aiModel !== undefined ? req.body.aiModel : client.aiModel,
-          aiApiKey: req.body.aiApiKey !== undefined ? req.body.aiApiKey : client.aiApiKey,
-          aiAssistantName: req.body.aiAssistantName !== undefined ? req.body.aiAssistantName : client.aiAssistantName,
-        },
-        include: {
-          user: {
-            select: { name: true, email: true }
-          },
-          subscription: true,
-          aiPermissions: true
-        }
+    if (ownerName) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { name: ownerName }
       });
-      
-      const aiPerms = req.body.aiPermissions;
-      if (aiPerms && typeof aiPerms === 'object') {
-        for (const [permName, enabled] of Object.entries(aiPerms)) {
-          await tx.aIPermission.upsert({
-            where: {
-              clientId_permissionName: {
-                clientId: updatedClient.id,
-                permissionName: permName,
-              }
-            },
-            create: {
+    }
+
+    const updatedClient = await prisma.client.update({
+      where: { userId },
+      data: {
+        companyName: companyName !== undefined ? companyName : client.companyName,
+        phone: phone !== undefined ? phone : client.phone,
+        website: website !== undefined ? website : client.website,
+        businessType: businessType !== undefined ? businessType : client.businessType,
+        industry: industry !== undefined ? industry : client.industry,
+        description: description !== undefined ? description : client.description,
+        country: country !== undefined ? country : client.country,
+        state: state !== undefined ? state : client.state,
+        city: city !== undefined ? city : client.city,
+        whatsappToken: req.body.whatsappToken !== undefined ? req.body.whatsappToken : client.whatsappToken,
+        whatsappPhoneId: req.body.whatsappPhoneId !== undefined ? req.body.whatsappPhoneId : client.whatsappPhoneId,
+        whatsappWebhookVerifyToken: req.body.whatsappWebhookVerifyToken !== undefined ? req.body.whatsappWebhookVerifyToken : client.whatsappWebhookVerifyToken,
+        whatsappWebhookUrl: req.body.whatsappWebhookUrl !== undefined ? req.body.whatsappWebhookUrl : client.whatsappWebhookUrl,
+        whatsappStatus: req.body.whatsappStatus !== undefined ? req.body.whatsappStatus : client.whatsappStatus,
+        aiProvider: req.body.aiProvider !== undefined ? req.body.aiProvider : client.aiProvider,
+        aiModel: req.body.aiModel !== undefined ? req.body.aiModel : client.aiModel,
+        aiApiKey: req.body.aiApiKey !== undefined ? req.body.aiApiKey : client.aiApiKey,
+        aiAssistantName: req.body.aiAssistantName !== undefined ? req.body.aiAssistantName : client.aiAssistantName,
+      },
+      include: {
+        user: {
+          select: { name: true, email: true }
+        },
+        subscription: true,
+        aiPermissions: true
+      }
+    });
+    
+    const aiPerms = req.body.aiPermissions;
+    if (aiPerms && typeof aiPerms === 'object') {
+      const upsertPromises = Object.entries(aiPerms).map(([permName, enabled]) => {
+        return prisma.aIPermission.upsert({
+          where: {
+            clientId_permissionName: {
               clientId: updatedClient.id,
               permissionName: permName,
-              enabled: !!enabled,
-            },
-            update: {
-              enabled: !!enabled,
             }
-          });
-        }
-        return await tx.client.findUnique({
-          where: { userId },
-          include: { user: { select: { name: true, email: true } }, subscription: true, aiPermissions: true }
+          },
+          create: {
+            clientId: updatedClient.id,
+            permissionName: permName,
+            enabled: !!enabled,
+          },
+          update: {
+            enabled: !!enabled,
+          }
         });
-      }
+      });
 
-      return updatedClient;
-    });
+      await Promise.all(upsertPromises);
 
-    res.json(updated);
+      const finalClient = await prisma.client.findUnique({
+        where: { userId },
+        include: { user: { select: { name: true, email: true } }, subscription: true, aiPermissions: true }
+      });
+      return res.json(finalClient);
+    }
+
+    res.json(updatedClient);
   } catch (error: any) {
     console.error("Client profile update error:", error);
     res.status(500).json({ error: `Failed to update profile settings parameters: ${error.message || error}` });
