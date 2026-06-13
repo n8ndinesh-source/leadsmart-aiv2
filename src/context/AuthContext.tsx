@@ -52,9 +52,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setStoredUser(updatedUser);
           }
         })
-        .catch(() => {
-          // If the verification fails, the token has expired
-          handleLogout();
+        .catch((err) => {
+          // Only logout if the token was actively rejected (e.g. 401 or 403)
+          // Do not logout if it's a transient server-side error (500) or database offline state
+          const msg = err?.message || "";
+          if (msg.includes("401") || msg.includes("403")) {
+            handleLogout();
+          } else {
+            console.warn("Background session-sync skipped due to server/database transient issue:", err);
+          }
         })
         .finally(() => {
           setLoading(false);

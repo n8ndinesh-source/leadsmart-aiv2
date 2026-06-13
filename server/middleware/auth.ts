@@ -21,8 +21,14 @@ export async function authenticateToken(req: AuthenticatedRequest, res: Response
     return res.status(401).json({ error: "Access token is required" });
   }
 
+  let decoded: any;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    decoded = jwt.verify(token, JWT_SECRET) as any;
+  } catch (err) {
+    return res.status(403).json({ error: "Invalid or expired token" });
+  }
+
+  try {
     const dbUser = await prisma.user.findUnique({
       where: { id: decoded.id }
     });
@@ -36,8 +42,9 @@ export async function authenticateToken(req: AuthenticatedRequest, res: Response
       role: dbUser.role,
     };
     next();
-  } catch (err) {
-    return res.status(403).json({ error: "Invalid or expired token" });
+  } catch (err: any) {
+    console.error("Database error during token authentication inspection:", err);
+    return res.status(500).json({ error: "Internal Server Error: Database inquiry failed" });
   }
 }
 
