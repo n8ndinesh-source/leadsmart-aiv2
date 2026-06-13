@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "postinstall": "prisma generate",
-    "build": "prisma generate && prisma db push --accept-data-loss && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy prisma generate && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "lint": "tsc --noEmit"
   },

@@ -152,7 +152,7 @@ async function startServer() {
       console.error("Failed to sync database schema:", dbError);
     }
   } else {
-    console.log("Serverless environment detected. Using build-time schema and writable SQLite mirror.");
+    console.log("Serverless environment detected. Skipping database auto-sync during boot.");
   }
 
   // API router
