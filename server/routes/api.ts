@@ -851,9 +851,9 @@ router.put("/client/profile", authenticateToken, requireRole(["CLIENT"]), async 
     });
 
     res.json(updated);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Client profile update error:", error);
-    res.status(500).json({ error: "Failed to update profile settings parameters." });
+    res.status(500).json({ error: `Failed to update profile settings parameters: ${error.message || error}` });
   }
 });
 
