@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "postinstall": "prisma generate",
+    "postinstall": "DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy prisma generate",
     "build": "DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy prisma generate && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "lint": "tsc --noEmit"
