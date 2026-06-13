@@ -112,6 +112,7 @@ export default function ClientDashboard() {
   const [testMessage, setTestMessage] = useState("Hello from LeadSmart AI!");
   const [testResult, setTestResult] = useState<{ success: boolean; text: string } | null>(null);
   const [isTestRunning, setIsTestRunning] = useState(false);
+  const [isSavingWhatsapp, setIsSavingWhatsapp] = useState(false);
 
   // Password reset states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -330,6 +331,37 @@ export default function ClientDashboard() {
       setWaConnectorStatus("DISCONNECTED");
       showToast("Cloud gateway bridging error, connect manually via token ID.", "error");
     }, 2000);
+  };
+
+  const handleSaveWhatsappSettings = async () => {
+    setIsSavingWhatsapp(true);
+    try {
+      const payload = {
+        companyName,
+        ownerName,
+        phone,
+        website,
+        businessType,
+        industry,
+        description,
+        country,
+        state,
+        city,
+        whatsappToken,
+        whatsappPhoneId,
+        whatsappWebhookVerifyToken,
+        whatsappWebhookUrl,
+        whatsappStatus,
+        aiPermissions,
+      };
+      const updatedClient = await api.put<any>("/client/profile", payload);
+      setClientProfile(updatedClient);
+      showToast("WhatsApp Subsystem configurations saved successfully.", "success");
+    } catch (err: any) {
+      showToast(err.message || "Failed to save WhatsApp configuration.", "error");
+    } finally {
+      setIsSavingWhatsapp(false);
+    }
   };
 
   // Update password credentials
@@ -1279,6 +1311,24 @@ export default function ClientDashboard() {
                           </span>
                         </div>
                       </div>
+
+                      <button
+                        onClick={handleSaveWhatsappSettings}
+                        disabled={isSavingWhatsapp}
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer flex justify-center items-center h-[42px]"
+                      >
+                        {isSavingWhatsapp ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-white mr-2" />
+                            <span>Saving Setup...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 text-white mr-2" />
+                            <span>Save Meta WhatsApp Setup</span>
+                          </>
+                        )}
+                      </button>
 
                       {testResult && (
                         <div className={`p-3 rounded-xl border text-[10px] font-mono whitespace-pre-wrap leading-relaxed ${testResult.success ? "bg-emerald-950/20 border-emerald-900/40 text-emerald-200" : "bg-rose-950/20 border-rose-900/40 text-rose-200"}`}>
