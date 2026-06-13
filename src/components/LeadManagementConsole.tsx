@@ -1421,7 +1421,7 @@ export function LeadManagementConsole() {
                           <div
                             className={`max-w-[82%] rounded-2xl p-3 text-xs leading-relaxed relative ${isIncoming ? "bg-[#182229] text-white border border-[#233138] rounded-tl-none" : "bg-[#005c4b] text-white rounded-tr-none"}`}
                           >
-                            <p className="whitespace-pre-wrap font-sans">{msg.message}</p>
+                            <p className="whitespace-pre-wrap font-sans">{msg.content || msg.message}</p>
                             <span className="block text-[8px] text-slate-350 font-mono text-right mt-1 leading-none select-none opacity-80">
                               {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
