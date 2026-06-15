@@ -14,7 +14,7 @@ export default function ClientDetailModal({ isOpen, onClose, client }: ClientDet
   const [activeSegment, setActiveSegment] = React.useState<"general" | "ai-config" | "ai-provider">("general");
 
   const [aiProvider, setAiProvider] = React.useState("gemini");
-  const [aiModel, setAiModel] = React.useState("gemini-1.5-flash");
+  const [aiModel, setAiModel] = React.useState("gemini-3.5-flash");
   const [aiApiKey, setAiApiKey] = React.useState("");
   const [aiAssistantName, setAiAssistantName] = React.useState("LeadSmart AI");
   const [isSaving, setIsSaving] = React.useState(false);
@@ -26,7 +26,7 @@ export default function ClientDetailModal({ isOpen, onClose, client }: ClientDet
     setActiveSegment("general");
     if (client) {
       setAiProvider(client.aiProvider || "gemini");
-      setAiModel(client.aiModel || "gemini-1.5-flash");
+      setAiModel(client.aiModel || "gemini-3.5-flash");
       setAiApiKey(client.aiApiKey || "");
       setAiAssistantName(client.aiAssistantName || "LeadSmart AI");
       setSaveStatus(null);
@@ -250,7 +250,7 @@ export default function ClientDetailModal({ isOpen, onClose, client }: ClientDet
                     onChange={(e) => {
                       const val = e.target.value;
                       setAiProvider(val);
-                      if (val === "gemini") setAiModel("gemini-1.5-flash");
+                      if (val === "gemini") setAiModel("gemini-3.5-flash");
                       else if (val === "openai") setAiModel("gpt-4o-mini");
                       else if (val === "anthropic") setAiModel("claude-3-5-sonnet");
                     }}
@@ -261,7 +261,7 @@ export default function ClientDetailModal({ isOpen, onClose, client }: ClientDet
                     <option value="anthropic">Anthropic Claude platform</option>
                   </select>
                 </div>
-
+ 
                 {/* 3. Model Identifier */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Model Identifier</label>
@@ -269,7 +269,7 @@ export default function ClientDetailModal({ isOpen, onClose, client }: ClientDet
                     type="text"
                     value={aiModel}
                     onChange={(e) => setAiModel(e.target.value)}
-                    placeholder={aiProvider === "gemini" ? "e.g. gemini-1.5-flash" : aiProvider === "openai" ? "gpt-4o-mini" : "claude-3-5-sonnet"}
+                    placeholder={aiProvider === "gemini" ? "e.g. gemini-3.5-flash" : aiProvider === "openai" ? "gpt-4o-mini" : "claude-3-5-sonnet"}
                     className="w-full bg-[#020409]/60 text-xs px-3.5 py-2.5 rounded-lg border border-slate-900 text-white placeholder-slate-700 outline-none focus:border-indigo-600 transition-colors font-light"
                   />
                 </div>

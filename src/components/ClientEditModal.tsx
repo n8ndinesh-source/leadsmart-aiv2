@@ -49,7 +49,7 @@ export default function ClientEditModal({ isOpen, onClose, client, plans, onSave
 
   // Custom AI states
   const [aiProvider, setAiProvider] = useState("gemini");
-  const [aiModel, setAiModel] = useState("gemini-1.5-flash");
+  const [aiModel, setAiModel] = useState("gemini-3.5-flash");
   const [aiApiKey, setAiApiKey] = useState("");
 
   // Test states
@@ -97,7 +97,7 @@ export default function ClientEditModal({ isOpen, onClose, client, plans, onSave
       setWhatsappStatus(client.whatsappStatus || "Inactive");
 
       setAiProvider(client.aiProvider || "gemini");
-      setAiModel(client.aiModel || "gemini-1.5-flash");
+      setAiModel(client.aiModel || "gemini-3.5-flash");
       setAiApiKey(client.aiApiKey || "");
 
       if (client.aiPermissions && Array.isArray(client.aiPermissions)) {
@@ -630,11 +630,9 @@ export default function ClientEditModal({ isOpen, onClose, client, plans, onSave
                         onChange={(e) => setAiModel(e.target.value)}
                         className="w-full bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-slate-200 font-mono text-[11px]"
                       >
-                        <option value="gemini-1.5-flash" className="bg-[#0b0f24]">gemini-1.5-flash (Fast & Economic)</option>
-                        <option value="gemini-2.5-flash" className="bg-[#0b0f24]">gemini-2.5-flash (Fast & Accurate)</option>
                         <option value="gemini-3.5-flash" className="bg-[#0b0f24]">gemini-3.5-flash (Production Default)</option>
-                        <option value="gemini-1.5-pro" className="bg-[#0b0f24]">gemini-1.5-pro (Rich Context Intelligence)</option>
-                        <option value="gemini-1.0-pro" className="bg-[#0b0f24]">gemini-1.0-pro (Legacy Stable)</option>
+                        <option value="gemini-3.1-flash-lite" className="bg-[#0b0f24]">gemini-3.1-flash-lite (Fast & Economic)</option>
+                        <option value="gemini-3.1-pro-preview" className="bg-[#0b0f24]">gemini-3.1-pro-preview (Advanced Reasoning)</option>
                       </select>
                     ) : (
                       <input

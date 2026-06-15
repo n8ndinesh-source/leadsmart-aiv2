@@ -1,4 +1,13 @@
 import "dotenv/config";
+
+// Fix Prisma error: ERROR: prepared statement "s0" already exists when running migrations / db push over Supabase transaction pooling port
+if (process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith("postgresql://") || process.env.DATABASE_URL.startsWith("postgres://"))) {
+  if (!process.env.DATABASE_URL.includes("pgbouncer=true")) {
+    const separator = process.env.DATABASE_URL.includes("?") ? "&" : "?";
+    process.env.DATABASE_URL = `${process.env.DATABASE_URL}${separator}pgbouncer=true`;
+  }
+}
+
 import express from "express";
 import path from "path";
 import { exec } from "child_process";

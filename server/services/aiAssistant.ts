@@ -455,7 +455,7 @@ export async function handleAICommand(
       Ensure strict JSON validation. Do not hallucinate IDs; only use IDs present in the CRM LEADS SNAPSHOT. If the user asks to delete "all junk leads", find the leads with status "Lost" or priority "Cold" or "junk" label, collect their IDs, and request type DELETE_MULTIPLE_LEADS with those IDs.`;
 
       const response = await client.models.generateContent({
-        model: clientInfo.aiModel || "gemini-2.0-flash",
+        model: clientInfo.aiModel || "gemini-3.5-flash",
         contents: [
           { role: "user", parts: [{ text: `CRM CO-PILOT BUSINESS DATABASE CONTEXT:\n${contextString}\n\nUSER COMMAND INPUT: "${input}"` }] }
         ],

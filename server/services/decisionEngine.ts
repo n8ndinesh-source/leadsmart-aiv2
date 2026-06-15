@@ -282,7 +282,7 @@ ${aiConfig ? `
 `;
 
       const response = await client.models.generateContent({
-        model: clientInfo?.aiModel || "gemini-2.0-flash",
+        model: clientInfo?.aiModel || "gemini-3.5-flash",
         contents: [
           { role: "user", parts: [{ text: userPrompt }] }
         ],

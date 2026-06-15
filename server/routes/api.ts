@@ -910,7 +910,7 @@ router.post("/ai/test-connection", authenticateToken, async (req: AuthenticatedR
         const ai = new GoogleGenAI({ apiKey });
         // Generate a tiny response to prove authentication validity
         const response = await ai.models.generateContent({
-          model: model || "gemini-2.0-flash",
+          model: model || "gemini-3.5-flash",
           contents: "Hello",
           config: {
             maxOutputTokens: 5
@@ -935,7 +935,7 @@ router.post("/ai/test-connection", authenticateToken, async (req: AuthenticatedR
               errMsg += " (Note: Your API key appears to be in OpenAI/OpenRouter format which starts with 'sk-'. Gemini API keys start with 'AIzaSy'.)";
             }
           } else if (errMsg.includes("MODEL_NOT_FOUND") || errMsg.includes("model not found")) {
-            errMsg = `Model not found: The model identifier '${model || "gemini-2.0-flash"}' is not supported by this API key or endpoint.`;
+            errMsg = `Model not found: The model identifier '${model || "gemini-3.5-flash"}' is not supported by this API key or endpoint.`;
           } else {
             // Find inner JSON message if present
             const jsonMatch = errMsg.match(/\{.*\}/);
@@ -1312,7 +1312,7 @@ You must output a single JSON document. Your output must strictly match the foll
 
   try {
     const response = await client.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3.5-flash",
       contents: [
         { role: "user", parts: [{ text: `Customer Message to process: "${message}"` }] }
       ],
@@ -3018,7 +3018,7 @@ Rules:
 - Keep the output short (under 250 characters), professional, and natural. Do NOT use headers, email lines, quotes, or any brackets placeholder.
 `;
       const response = await gClient.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.5-flash",
         contents: prompt
       });
       
