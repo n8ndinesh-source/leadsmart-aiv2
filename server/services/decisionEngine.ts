@@ -123,16 +123,22 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
       ruleScore += 5;
     }
 
-    if (
-      contentLower.includes("no") || 
+    const isOptOut = 
+      contentLower === "no" || 
+      contentLower === "no." || 
+      contentLower === "no thanks" || 
+      contentLower === "no thank you" || 
+      contentLower === "no, thanks" || 
+      contentLower === "no, thank you" || 
       contentLower.includes("stop") || 
       contentLower.includes("unsubscribe") || 
       contentLower.includes("not interested") || 
       contentLower.includes("dont need") || 
       contentLower.includes("don't need") ||
       contentLower.includes("wrong number") ||
-      contentLower.includes("cancel")
-    ) {
+      contentLower.includes("cancel");
+
+    if (isOptOut) {
       detectedIntent = "Not Interested";
       ruleScore = 10;
     }

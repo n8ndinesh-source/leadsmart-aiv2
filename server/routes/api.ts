@@ -1249,7 +1249,19 @@ function runMockAISimulation(message: string, bp: any, pIntel: any, sb: any, cr:
     followUpSuggestion = "Immediate phone outbound tomorrow morning.";
     responseText = `That is fantastic! We are ready to coordinate this purchase immediately. ${pIntel.deliveryTimeline ? `Our estimated delivery timeframe is currently ${pIntel.deliveryTimeline}.` : ""} Our sales team will finalize terms with you shortly. Could you confirm your contact number or availability today? ${rc.useEmojis === "Yes" ? "💼🔥" : ""}`;
   } 
-  else if (lowercase.includes("no") || lowercase.includes("stop") || lowercase.includes("expensive") || lowercase.includes("don't want") || lowercase.includes("cancel")) {
+  else if (
+    lowercase === "no" || 
+    lowercase === "no." || 
+    lowercase === "no thanks" || 
+    lowercase === "no thank you" || 
+    lowercase === "no, thanks" || 
+    lowercase === "no, thank you" || 
+    lowercase.includes("stop") || 
+    lowercase.includes("expensive") || 
+    lowercase.includes("don't want") || 
+    lowercase.includes("dont want") || 
+    lowercase.includes("cancel")
+  ) {
     intent = "Cold";
     leadScore = 15;
     recommendedAction = "Pause automated campaigns & direct to passive nurturing track.";
@@ -2275,57 +2287,7 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
       }
     });
 
-    // Run real-time AI Decision Engine analysis automatically
-    analyzeLead(lead.id).then(async (result) => {
-      // 24/7 AI EMPLOYEE MODE: Automatically reply if permissions allow
-      if (client?.aiPermissions) {
-        const perms: any[] = client.aiPermissions;
-        const autoReply = perms.find(p => p.permissionName === 'auto_reply')?.enabled;
-        const sendMessages = perms.find(p => p.permissionName === 'send_messages')?.enabled;
-
-        if (autoReply && sendMessages && result.suggestedReply && client.whatsappToken && client.whatsappPhoneId) {
-          try {
-            await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${client.whatsappToken}`
-              },
-              body: JSON.stringify({
-                messaging_product: "whatsapp",
-                recipient_type: "individual",
-                to: from, // from is the cleanPhoneNumber(from)
-                type: "text",
-                text: { body: result.suggestedReply }
-              })
-            });
-
-            await prisma.message.create({
-              data: {
-                leadId: lead!.id,
-                direction: "OUT",
-                content: result.suggestedReply,
-                timestamp: new Date()
-              }
-            });
-
-            await prisma.leadActivity.create({
-              data: {
-                leadId: lead!.id,
-                activityType: "FOLLOW_UP",
-                description: `Auto-Reply Sent by AI: "${result.suggestedReply.substring(0, 50)}..."`
-              }
-            });
-          } catch(err) {
-            console.error("Auto reply send failed:", err);
-          }
-        }
-      }
-    }).catch(err => {
-      console.error("Real-time AI analysis trigger failed on inbound message webhook:", err);
-    });
-
-    // Write Activity log
+    // Write Activity log of inbound message
     await prisma.leadActivity.create({
       data: {
         leadId: lead.id,
@@ -2334,123 +2296,91 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
       }
     });
 
-    // Handle Basic AI Auto Reply (Light version)
+    // Handle AI Auto Response via the Core Intelligence / Decision Engine Layer
     const aiConfig = await prisma.aIConfiguration.findUnique({
       where: { clientId: client.id }
     });
 
-    let aiResponseText = "Thanks for contacting us. Our team will get back to you shortly.";
-    let isAiSmart = false;
-    let intentClass = "Warm";
-    let leadScoreVal = 55;
-    let recommendationText = "Awaiting teammate review.";
-    let urgencyClass = "Medium";
+    // Run the Core Intelligence layer sequentially to analyze the contact state,
+    // evaluate lead scores, and generate the ultimate contextual suggested reply.
+    const analysis = await analyzeLead(lead.id);
 
-    if (aiConfig) {
-      try {
-        const rc = JSON.parse(aiConfig.responseControl);
-        if (rc && (rc.autoReplyMode === "AI Smart" || rc.autoReplyMode === "Smart" || rc.autoReplyMode === "Yes")) {
-          isAiSmart = true;
-          const bp = JSON.parse(aiConfig.businessProfile);
-          const pIntel = JSON.parse(aiConfig.productIntelligence);
-          const sb = JSON.parse(aiConfig.salesBehavior);
-          const cr = JSON.parse(aiConfig.customerRules);
-          const fr = JSON.parse(aiConfig.followUpRules);
-          const bg = JSON.parse(aiConfig.businessGoals);
+    // Check if auto-reply permissions or settings are active
+    let isAutoReplyEnabled = false;
 
-          const prompts = generateAutoPrompts(bp, pIntel, sb, cr, fr, rc, bg);
-
-          let aiResult;
-          if (process.env.GEMINI_API_KEY) {
-            aiResult = await runRealGeminiSimulation(body, bp, pIntel, sb, cr, fr, rc, bg, prompts);
-          } else {
-            aiResult = runMockAISimulation(body, bp, pIntel, sb, cr, rc);
-          }
-
-          aiResponseText = aiResult.aiResponse || aiResponseText;
-          intentClass = aiResult.intent || "Warm";
-          leadScoreVal = aiResult.leadScore !== undefined ? aiResult.leadScore : 55;
-          recommendationText = aiResult.recommendedAction || "Keep monitoring.";
-        }
-      } catch (err) {
-        console.error("Failed to compile AI response, falling back:", err);
+    if (client?.aiPermissions) {
+      const perms: any[] = client.aiPermissions;
+      const autoReplyPerm = perms.find(p => p.permissionName === "auto_reply")?.enabled;
+      const sendMessagesPerm = perms.find(p => p.permissionName === "send_messages")?.enabled;
+      if (autoReplyPerm && sendMessagesPerm) {
+        isAutoReplyEnabled = true;
       }
     }
 
-    // Placeholders for future Phase 7
-    if (isAiSmart) {
-      const lowBody = body.toLowerCase();
-      if (lowBody.includes("asap") || lowBody.includes("urgent") || lowBody.includes("rush") || lowBody.includes("emergency") || lowBody.includes("now")) {
-        urgencyClass = "High";
-      } else if (lowBody.includes("later") || lowBody.includes("next month") || lowBody.includes("someday")) {
-        urgencyClass = "Low";
-      }
+    if (!isAutoReplyEnabled && aiConfig) {
+      try {
+        const rc = JSON.parse(aiConfig.responseControl || "{}");
+        if (rc && (rc.autoReplyMode === "AI Smart" || rc.autoReplyMode === "Smart" || rc.autoReplyMode === "Yes")) {
+          isAutoReplyEnabled = true;
+        }
+      } catch (_) {}
+    }
 
+    let storedOutbound = null;
+
+    if (isAutoReplyEnabled) {
+      const replyText = analysis.suggestedReply || "Thanks for contacting us. Our team will get back to you shortly.";
+
+      // Store outgoing reply message in DB
+      storedOutbound = await prisma.message.create({
+        data: {
+          leadId: lead.id,
+          direction: "OUT",
+          content: replyText,
+          timestamp: new Date()
+        }
+      });
+
+      // Update Lead lastMessageAt to match the outbound time
       await prisma.lead.update({
         where: { id: lead.id },
         data: {
-          intentScore: intentClass === "Hot" ? 90 : (intentClass === "Warm" ? 60 : 25),
-          leadScore: leadScoreVal,
-          aiRecommendation: recommendationText,
-          urgencyLevel: urgencyClass
+          lastMessageAt: new Date()
+        }
+      });
+
+      // Dispatch message back to WhatsApp Meta API if client is configured
+      if (client.whatsappToken && client.whatsappPhoneId) {
+        try {
+          console.log(`Forwarding WhatsApp message reply to number ${from}`);
+          await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${client.whatsappToken}`
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: from,
+              type: "text",
+              text: { body: replyText }
+            })
+          });
+        } catch (apiErr) {
+          console.error("Failed sending message via Meta Graph API:", apiErr);
+        }
+      }
+
+      // Record dispatch activity event
+      await prisma.leadActivity.create({
+        data: {
+          leadId: lead.id,
+          activityType: "FOLLOWUP",
+          description: `Automated WhatsApp reply dispatched: "${replyText.substring(0, 50)}..."`
         }
       });
     }
-
-    // Store outgoing reply message in DB
-    const storedOutbound = await prisma.message.create({
-      data: {
-        leadId: lead.id,
-        direction: "OUT",
-        content: aiResponseText,
-        timestamp: new Date()
-      }
-    });
-
-    // Run real-time AI Decision Engine analysis automatically
-    analyzeLead(lead.id).catch(err => {
-      console.error("Real-time AI analysis trigger failed on outbound AI message:", err);
-    });
-
-    // Update Lead lastMessageAt to match the outbound time
-    await prisma.lead.update({
-      where: { id: lead.id },
-      data: {
-        lastMessageAt: new Date()
-      }
-    });
-
-    // Dispatch message back to WhatsApp Meta API if client is configured
-    if (client.whatsappToken && client.whatsappPhoneId) {
-      try {
-        console.log(`Forwarding WhatsApp message reply to number ${from}`);
-        await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${client.whatsappToken}`
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            to: from,
-            type: "text",
-            text: { body: aiResponseText }
-          })
-        });
-      } catch (apiErr) {
-        console.error("Failed sending message via Meta Graph API:", apiErr);
-      }
-    }
-
-    // Event log
-    await prisma.leadActivity.create({
-      data: {
-        leadId: lead.id,
-        activityType: "FOLLOWUP",
-        description: `Automated WhatsApp reply dispatched: "${aiResponseText.substring(0, 50)}..."`
-      }
-    });
 
     return res.status(200).json({
       status: "success",
