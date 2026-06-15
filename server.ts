@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
-import { execSync } from "child_process";
+import { exec } from "child_process";
 import { createServer as createViteServer } from "vite";
 import bcrypt from "bcryptjs";
 import { prisma } from "./server/db";
@@ -142,15 +142,19 @@ async function startServer() {
   );
 
   if (!isServerless) {
-    console.log("Normal environment detected. Attempting to sync database schema...");
-    try {
-      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-      console.log("Database schema synced successfully.");
+    console.log("Normal environment detected. Starting asynchronous database schema sync in the background...");
+    exec('npx prisma db push --accept-data-loss', (error, stdout, stderr) => {
+      if (error) {
+        console.error("Failed to sync database schema in background:", error);
+        console.error("Prisma error output:", stderr);
+        return;
+      }
+      console.log("Database schema synced successfully in background.");
       // Auto-seed the accounts on boot
-      await seedDefaultUsers();
-    } catch (dbError) {
-      console.error("Failed to sync database schema:", dbError);
-    }
+      seedDefaultUsers().catch(seedError => {
+        console.error("Database seed failed:", seedError);
+      });
+    });
   } else {
     console.log("Serverless environment detected. Skipping database auto-sync during boot.");
   }
