@@ -261,7 +261,7 @@ You must output a single JSON document. Your output must strictly match the foll
 - "conversionProbability": Exactly one of "Low", "Medium", "High".
 - "nextBestAction": A clear action like: "Send follow-up message now", "Offer discount", "Schedule call", "Send quotation", "Wait 24 hours", "Mark as lost lead", or "Escalate to human sales agent". Choose the absolute single best action for this sales opportunity.
 - "followUpRecommendation": Dynamic recommendation to adjust followups (e.g. "Increase urgency for hot leads", "Reduce spam for cold leads", "Stop follow-ups if user is not responding", "Restart follow-ups if re-engaged").
-- "suggestedReply": The absolute best response message text based on customer's last inquiry, adhering strictly to company tone standards.
+- "suggestedReply": The absolute best response message text based on the customer's overall requirements and cumulative conversation history. Keep in mind that customers often send multiple consecutive message bubbles (including greetings, punctuation, or short follow-ups at the end) - you MUST address their actual, core business needs (such as quantities, sizes, printing, or product specifications) mentioned anywhere in their recent messages, rather than just replying to a late greeting like "hi" or "hello". If they ask a specific question, answer it directly. Adhere strictly to company tone standards.
 - "revenueImpact": Exactly one of "Low", "Medium", "High".
 
 Analyze correctly as a smart sales manager prioritizing high conversion, minimum spam, and highlighting high priority revenue lines.`;

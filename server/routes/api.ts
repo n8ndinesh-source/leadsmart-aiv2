@@ -2159,7 +2159,7 @@ function cleanPhoneNumber(num: string): string {
   return num.replace(/[^\d+]/g, "").trim();
 }
 
-// In-memory cache for WhatsApp webhook deduplication and sequential queue locks
+// In-memory cache for WhatsApp webhook deduplication
 const processedWhatsappMessages = new Set<string>();
 const maxStoredMessageIds = 1000;
 const messageIdQueue: string[] = [];
@@ -2180,7 +2180,8 @@ function isDuplicateMessage(messageId: string): boolean {
   return false;
 }
 
-const phoneNumberLocks = new Map<string, Promise<any>>();
+// Map to track active debounce timers per customer phone number
+const whatsappDebounceTimers = new Map<string, NodeJS.Timeout>();
 
 // 2. POST /webhook/whatsapp - Incoming Message Handler
 router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<any> => {
@@ -2224,7 +2225,7 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     // Clean numbers
     from = cleanPhoneNumber(from);
 
-    // Filter duplicate incoming messages immediately
+    // Filter duplicate incoming messages immediately to meet Meta's retry requirements
     if (messageId && isDuplicateMessage(messageId)) {
       console.log(`[Deduplication] WhatsApp message ${messageId} already processed. Ignored.`);
       return res.status(200).json({ status: "ignored_duplicate" });
@@ -2233,121 +2234,129 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     // Respond immediately to Meta to avoid timeout and duplicate retries
     res.status(200).json({ status: "accepted", messageId });
 
-    // Enqueue the background work sequentially for this specific phone number to avoid race conditions
-    const previousLock = phoneNumberLocks.get(from) || Promise.resolve();
-    const currentProcess = previousLock.then(async () => {
+    // Look up Client by phoneId
+    let client = null;
+    if (phoneId) {
+      client = await prisma.client.findFirst({
+        where: { whatsappPhoneId: phoneId },
+        include: { aiPermissions: true }
+      });
+    }
+
+    // Fallback: Use the first client in the system so demos never break
+    if (!client) {
+      client = await prisma.client.findFirst({
+        include: { aiPermissions: true }
+      });
+    }
+
+    if (!client) {
+      console.error("No configured Client found in system to route WhatsApp message!");
+      return;
+    }
+
+    // Check if lead exists for this client (lookup by whatsappNumber or phoneNumber)
+    let lead = await prisma.lead.findFirst({
+      where: {
+        clientId: client.id,
+        OR: [
+          { whatsappNumber: from },
+          { phoneNumber: from }
+        ]
+      }
+    });
+
+    if (!lead) {
+      // Auto Lead Creation Rule (Unknown name, WhatsApp source)
+      lead = await prisma.lead.create({
+        data: {
+          clientId: client.id,
+          name: contactName === "Unknown" ? `WhatsApp Lead (${from})` : contactName,
+          phoneNumber: from,
+          whatsappNumber: from,
+          source: "WhatsApp",
+          status: "New",
+          priority: "Cold",
+          conversationStatus: "Active",
+          lastResponseFromClient: true,
+          followUpCount: 0,
+          followUpStatus: "None",
+          nextFollowUpAt: null,
+          lastMessageAt: new Date()
+        }
+      });
+
+      // Log Lead Creation activity
+      await prisma.leadActivity.create({
+        data: {
+          leadId: lead.id,
+          activityType: "CREATED",
+          description: `Auto-created lead from raw WhatsApp inbound contact.`
+        }
+      });
+    } else {
+      // Update existing lead conversation tracking logs
+      lead = await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          lastMessageAt: new Date(),
+          whatsappNumber: from,
+          conversationStatus: "Active",
+          lastResponseFromClient: true,
+          followUpCount: 0,
+          followUpStatus: "Replied",
+          nextFollowUpAt: null
+        }
+      });
+    }
+
+    // Store incoming message record IMMEDIATELY so the dashboard catches it in real-time
+    await prisma.message.create({
+      data: {
+        leadId: lead.id,
+        direction: "IN",
+        content: body,
+        timestamp: new Date()
+      }
+    });
+
+    // Write Activity log of inbound message IMMEDIATELY
+    await prisma.leadActivity.create({
+      data: {
+        leadId: lead.id,
+        activityType: "NOTE_ADDED", // Treat incoming chat as activity event
+        description: `Incoming WhatsApp chat: "${body.length > 50 ? body.substring(0, 50) + "..." : body}"`
+      }
+    });
+
+    // Clear any preceding unresolved response generation timer for this caller
+    if (whatsappDebounceTimers.has(from)) {
+      const activeTimer = whatsappDebounceTimers.get(from);
+      if (activeTimer) {
+        clearTimeout(activeTimer);
+      }
+    }
+
+    // Debounce the AI response generation by 5.5 seconds.
+    // This aggregates multiple rapid sequence chat bubbles into a single cohesive AI review session.
+    const leadId = lead.id;
+    const finalClient = client;
+    const finalPhoneId = phoneId;
+
+    const timer = setTimeout(async () => {
       try {
-        console.log(`[WhatsApp Webhook] Processing background transaction for ${from}`);
+        console.log(`[Debounce Triggered] Processing consolidated WhatsApp AI analysis response for ${from}`);
+        whatsappDebounceTimers.delete(from);
 
-        // Look up Client by phoneId
-        let client = null;
-        if (phoneId) {
-          client = await prisma.client.findFirst({
-            where: { whatsappPhoneId: phoneId },
-            include: { aiPermissions: true }
-          });
-        }
-
-        // Fallback: Use the first client in the system so demos never break
-        if (!client) {
-          client = await prisma.client.findFirst({
-            include: { aiPermissions: true }
-          });
-        }
-
-        if (!client) {
-          console.error("No configured Client found in system to route WhatsApp message!");
-          return;
-        }
-
-        // Check if lead exists for this client (lookup by whatsappNumber or phoneNumber)
-        let lead = await prisma.lead.findFirst({
-          where: {
-            clientId: client.id,
-            OR: [
-              { whatsappNumber: from },
-              { phoneNumber: from }
-            ]
-          }
-        });
-
-        if (!lead) {
-          // Auto Lead Creation Rule (Unknown name, WhatsApp source)
-          lead = await prisma.lead.create({
-            data: {
-              clientId: client.id,
-              name: contactName === "Unknown" ? `WhatsApp Lead (${from})` : contactName,
-              phoneNumber: from,
-              whatsappNumber: from,
-              source: "WhatsApp",
-              status: "New",
-              priority: "Cold",
-              conversationStatus: "Active",
-              lastResponseFromClient: true,
-              followUpCount: 0,
-              followUpStatus: "None",
-              nextFollowUpAt: null,
-              lastMessageAt: new Date()
-            }
-          });
-
-          // Log Lead Creation activity
-          await prisma.leadActivity.create({
-            data: {
-              leadId: lead.id,
-              activityType: "CREATED",
-              description: `Auto-created lead from raw WhatsApp inbound contact.`
-            }
-          });
-        } else {
-          // Update existing lead conversation tracking logs
-          lead = await prisma.lead.update({
-            where: { id: lead.id },
-            data: {
-              lastMessageAt: new Date(),
-              whatsappNumber: from,
-              conversationStatus: "Active",
-              lastResponseFromClient: true,
-              followUpCount: 0,
-              followUpStatus: "Replied",
-              nextFollowUpAt: null
-            }
-          });
-        }
-
-        // Store incoming message record
-        await prisma.message.create({
-          data: {
-            leadId: lead.id,
-            direction: "IN",
-            content: body,
-            timestamp: new Date()
-          }
-        });
-
-        // Write Activity log of inbound message
-        await prisma.leadActivity.create({
-          data: {
-            leadId: lead.id,
-            activityType: "NOTE_ADDED", // Treat incoming chat as activity event
-            description: `Incoming WhatsApp chat: "${body.length > 50 ? body.substring(0, 50) + "..." : body}"`
-          }
-        });
-
-        // Handle AI Auto Response via the Core Intelligence / Decision Engine Layer
         const aiConfig = await prisma.aIConfiguration.findUnique({
-          where: { clientId: client.id }
+          where: { clientId: finalClient.id }
         });
 
-        // Run the Core Intelligence layer sequentially to analyze the contact state,
-        // evaluate lead scores, and generate the ultimate contextual suggested reply.
-        const analysis = await analyzeLead(lead.id);
-
-        // Check if auto-reply permissions or settings are active
+        // Determine if auto reply permissions or setting configurations are active
         let isAutoReplyEnabled = false;
 
-        if (client?.aiPermissions) {
-          const perms: any[] = client.aiPermissions;
+        if (finalClient?.aiPermissions) {
+          const perms: any[] = finalClient.aiPermissions;
           const autoReplyPerm = perms.find(p => p.permissionName === "auto_reply")?.enabled;
           const sendMessagesPerm = perms.find(p => p.permissionName === "send_messages")?.enabled;
           if (autoReplyPerm && sendMessagesPerm) {
@@ -2365,35 +2374,40 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
         }
 
         if (isAutoReplyEnabled) {
+          // Execute sequential AI intelligence analysis on full combined lead chat history
+          const analysis = await analyzeLead(leadId);
           const replyText = analysis.suggestedReply || "Thanks for contacting us. Our team will get back to you shortly.";
 
-          // Store outgoing reply message in DB
+          // Store AI response outbound log message in DB
           await prisma.message.create({
             data: {
-              leadId: lead.id,
+              leadId,
               direction: "OUT",
               content: replyText,
               timestamp: new Date()
             }
           });
 
-          // Update Lead lastMessageAt to match the outbound time
+          // Sync lead timeline metrics
           await prisma.lead.update({
-            where: { id: lead.id },
+            where: { id: leadId },
             data: {
               lastMessageAt: new Date()
             }
           });
 
-          // Dispatch message back to WhatsApp Meta API if client is configured
-          if (client.whatsappToken && client.whatsappPhoneId) {
+          // Dispatch reply message back using Meta Graph API is configured
+          const token = finalClient.whatsappToken;
+          const targetPhoneId = finalPhoneId || finalClient.whatsappPhoneId;
+
+          if (token && targetPhoneId) {
             try {
-              console.log(`Forwarding WhatsApp message reply to number ${from}`);
-              await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+              console.log(`[Meta API Dispatch] Direct outbound send requested for target number ${from}`);
+              await fetch(`https://graph.facebook.com/v19.0/${targetPhoneId}/messages`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "Authorization": `Bearer ${client.whatsappToken}`
+                  "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({
                   messaging_product: "whatsapp",
@@ -2403,31 +2417,26 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
                   text: { body: replyText }
                 })
               });
-            } catch (apiErr) {
-              console.error("Failed sending message via Meta Graph API:", apiErr);
+            } catch (fbErr) {
+              console.error("[Meta API Dispatch Error] Meta Graph dispatch failed", fbErr);
             }
           }
 
-          // Record dispatch activity event
+          // Generate follower timeline activity logs
           await prisma.leadActivity.create({
             data: {
-              leadId: lead.id,
+              leadId,
               activityType: "FOLLOWUP",
-              description: `Automated WhatsApp reply dispatched: "${replyText.substring(0, 50)}..."`
+              description: `Automated WhatsApp reply dispatched (debounced): "${replyText.substring(0, 50)}..."`
             }
           });
         }
-      } catch (bgError) {
-        console.error("Error in background async WhatsApp thread processing:", bgError);
+      } catch (debounceErr) {
+        console.error(`Error executing debounced WhatsApp transaction for ${from}:`, debounceErr);
       }
-    });
+    }, 5500);
 
-    phoneNumberLocks.set(from, currentProcess);
-    currentProcess.catch(() => {}).finally(() => {
-      if (phoneNumberLocks.get(from) === currentProcess) {
-        phoneNumberLocks.delete(from);
-      }
-    });
+    whatsappDebounceTimers.set(from, timer);
 
   } catch (error) {
     console.error("Critical WhatsApp Webhook error:", error);
