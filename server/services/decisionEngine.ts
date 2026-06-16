@@ -261,7 +261,13 @@ You must output a single JSON document. Your output must strictly match the foll
 - "conversionProbability": Exactly one of "Low", "Medium", "High".
 - "nextBestAction": A clear action like: "Send follow-up message now", "Offer discount", "Schedule call", "Send quotation", "Wait 24 hours", "Mark as lost lead", or "Escalate to human sales agent". Choose the absolute single best action for this sales opportunity.
 - "followUpRecommendation": Dynamic recommendation to adjust followups (e.g. "Increase urgency for hot leads", "Reduce spam for cold leads", "Stop follow-ups if user is not responding", "Restart follow-ups if re-engaged").
-- "suggestedReply": The absolute best response message text based on the customer's overall requirements and cumulative conversation history. Keep in mind that customers often send multiple consecutive message bubbles (including greetings, punctuation, or short follow-ups at the end) - you MUST address their actual, core business needs (such as quantities, sizes, printing, or product specifications) mentioned anywhere in their recent messages, rather than just replying to a late greeting like "hi" or "hello". If they ask a specific question, answer it directly. Adhere strictly to company tone standards.
+- "suggestedReply": The absolute best response message text based on the customer's overall requirements and cumulative conversation history.
+  CRITICAL RESPONSE STYLE RULES FOR "suggestedReply":
+  1. KEEP IT EXTREMELY BRIEF: Limit the suggestedReply to EXACTLY 1 OR 2 SENTENCES (Maximum 35-40 words). No exceptions.
+  2. NO LISTS OR BULLET POINTS: Under no circumstances should you list multiple questions, options, or numbered inquiries (such as "1. What size? 2. What printing?").
+  3. ONE STEP AT A TIME: Ask for only ONE detail next or answer ONE question at a time. Guide the customer step-by-step through a natural conversational sequence.
+  4. NO CORPORATE TEMPLATE FLUFF: Do not start with generic corporate greetings or advertisement boilerplates like "Thank you for reaching out to Ecopek! We specialize in premium bagasse plates and decompostable areca leaf tableware...". Jump straight into a conversational, helpful human-like tone, e.g., "We can absolutely help you with an order of [Quantity] [Product]. [Ask one simple question for next step]" or "Thanks for the details! Understood on [Specification]. Could we get your [Next Detail, e.g. delivery pincode] to calculate shipping?"
+  5. NATURAL ENVELOPIST STYLE: Address actual, core business needs (such as quantities, sizes, printing, or specifications) mentioned anywhere in their recent messages. Maintain extreme brevity and casual-yet-highly-professional human sales energy.
 - "revenueImpact": Exactly one of "Low", "Medium", "High".
 
 Analyze correctly as a smart sales manager prioritizing high conversion, minimum spam, and highlighting high priority revenue lines.`;
