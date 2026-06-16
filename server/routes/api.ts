@@ -2353,6 +2353,21 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     try {
       console.log(`[Debounce Triggered] Processing consolidated WhatsApp AI analysis response for ${from}`);
 
+      // Double reply prevention: skip response generation if we have already replied to the user's latest incoming message(s)
+      const latestIn = await prisma.message.findFirst({
+        where: { leadId, direction: "IN" },
+        orderBy: { timestamp: "desc" }
+      });
+      const latestOut = await prisma.message.findFirst({
+        where: { leadId, direction: "OUT" },
+        orderBy: { timestamp: "desc" }
+      });
+
+      if (latestIn && latestOut && latestOut.timestamp > latestIn.timestamp) {
+        console.log(`[Anti Double Reply Bypass] Skipping AI reply for ${from}. We already sent an OUT message (${latestOut.timestamp.toISOString()}) after the latest IN message (${latestIn.timestamp.toISOString()}).`);
+        return res.status(200).json({ status: "skipped_already_replied", messageId });
+      }
+
       const aiConfig = await prisma.aIConfiguration.findUnique({
         where: { clientId: finalClient.id }
       });

@@ -263,36 +263,40 @@ export default function ClientDashboard() {
     }
 
     try {
-      const response = await fetch(`https://graph.facebook.com/v19.0/${whatsappPhoneId}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${whatsappToken}`
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: testPhone || "1234567890", // Won't actually send unless testPhone is real and verified
-          type: "text",
-          text: {
-            body: "test"
-          }
-        })
-      });
+      // First save the settings securely to the server so the DB has the latest keys
+      const payload = {
+        companyName,
+        ownerName,
+        phone,
+        website,
+        businessType,
+        industry,
+        description,
+        country,
+        state,
+        city,
+        whatsappToken,
+        whatsappPhoneId,
+        whatsappWebhookVerifyToken,
+        whatsappWebhookUrl,
+        whatsappStatus,
+        aiPermissions,
+      };
+      const updatedClient = await api.put<any>("/client/profile", payload);
+      setClientProfile(updatedClient);
 
-      const data = await response.json();
+      // Trigger secure server-side handshake test
+      const data = await api.post<any>(`/whatsapp/test-connection/${updatedClient.id}`);
       
-      // WhatsApp API returns success status if authenticated and valid payload
-      // Alternatively, if it fails because of missing phone number, we at least know it reached Meta
-      if (response.ok || (data.error && data.error.code === 131030)) { 
+      if (data.success) {
         setTestResult({
           success: true,
-          text: "Connection to WhatsApp Gateway OK. Bearer Token is Valid."
+          text: data.message || "Connection to WhatsApp Gateway OK. Bearer Token is Valid."
         });
         setWaConnectorStatus("CONNECTED");
         setWhatsappStatus("Active");
       } else {
-        throw new Error(data.error?.message || "Unknown Meta API Error");
+        throw new Error(data.message || "Handshake failed. Ensure both Token and Phone Number ID are filled.");
       }
     } catch (e: any) {
       setTestResult({
@@ -311,13 +315,39 @@ export default function ClientDashboard() {
     setIsTestRunning(true);
     setTestResult(null);
     try {
-      const response = await api.post("/client/whatsapp/test", {
-        phone: testPhone,
-        message: testMessage,
-        token: whatsappToken,
-        phoneId: whatsappPhoneId
+      // First save the settings securely to the server
+      const payload = {
+        companyName,
+        ownerName,
+        phone,
+        website,
+        businessType,
+        industry,
+        description,
+        country,
+        state,
+        city,
+        whatsappToken,
+        whatsappPhoneId,
+        whatsappWebhookVerifyToken,
+        whatsappWebhookUrl,
+        whatsappStatus,
+        aiPermissions,
+      };
+      const updatedClient = await api.put<any>("/client/profile", payload);
+      setClientProfile(updatedClient);
+
+      // Trigger secure server-side test message send
+      const response = await api.post<any>(`/whatsapp/test-message/${updatedClient.id}`, {
+        toPhone: testPhone,
+        message: testMessage
       });
-      setTestResult({ success: true, text: "Diagnostic message dispatched." });
+      
+      if (response.success) {
+        setTestResult({ success: true, text: "Diagnostic message dispatched." });
+      } else {
+        throw new Error(response.error || "Failed to dispatch test.");
+      }
     } catch (e: any) {
       setTestResult({ success: false, text: e.message || "Failed to dispatch test." });
     } finally {
