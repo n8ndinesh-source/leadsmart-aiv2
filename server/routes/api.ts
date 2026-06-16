@@ -2394,9 +2394,49 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
       }
 
       if (isAutoReplyEnabled) {
-        // Execute sequential AI intelligence analysis on full combined lead chat history
-        const analysis = await analyzeLead(leadId);
-        const replyText = analysis.suggestedReply || "Thanks for contacting us. Our team will get back to you shortly.";
+        let latestInAtStart = await prisma.message.findFirst({
+          where: { leadId, direction: "IN" },
+          orderBy: { timestamp: "desc" }
+        });
+
+        let replyText = "";
+        const maxRetries = 4;
+        let attempts = 0;
+
+        while (attempts < maxRetries) {
+          attempts++;
+          console.log(`[AI Response Generation] Attempt ${attempts}/${maxRetries} for ${from}. Current base message ID: ${latestInAtStart?.id}, text: "${latestInAtStart?.content}"`);
+
+          // Execute sequential AI intelligence analysis on full combined lead chat history
+          const analysis = await analyzeLead(leadId);
+          replyText = analysis.suggestedReply || "Thanks for contacting us. Our team will get back to you shortly.";
+
+          // Check if a brand new incoming message has arrived in the meantime
+          const currentLatestIn = await prisma.message.findFirst({
+            where: { leadId, direction: "IN" },
+            orderBy: { timestamp: "desc" }
+          });
+
+          // Also check if any newer OUT message was already written since our generation started (for safety/double reply prevention)
+          const currentLatestOut = await prisma.message.findFirst({
+            where: { leadId, direction: "OUT" },
+            orderBy: { timestamp: "desc" }
+          });
+
+          if (currentLatestOut && currentLatestIn && currentLatestOut.timestamp > currentLatestIn.timestamp) {
+            console.log(`[Anti Double Reply Bypass during loop] Skipping dispatch for ${from}. An OUT reply was already sent after the latest IN message.`);
+            return res.status(200).json({ status: "skipped_already_replied_during_generation", messageId });
+          }
+
+          if (currentLatestIn && latestInAtStart && currentLatestIn.id !== latestInAtStart.id) {
+            console.log(`[Outdated Response Detected] A parent message was appended or changed from "${latestInAtStart.content}" (ID: ${latestInAtStart.id}) to "${currentLatestIn.content}" (ID: ${currentLatestIn.id}) during generation. Regenerating response with updated context.`);
+            latestInAtStart = currentLatestIn;
+            continue; // Loop again to generate a new fresh response!
+          }
+
+          // If everything matches and has not changed, we can safely proceed to dispatch
+          break;
+        }
 
         // Store AI response outbound log message in DB
         await prisma.message.create({
