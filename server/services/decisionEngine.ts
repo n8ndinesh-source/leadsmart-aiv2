@@ -202,15 +202,36 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
     } catch (_) {}
   }
 
-  let ruleReply = `Hello ${lead.name}, let us know if you need any additional assistance. We're here to help!`;
-  if (detectedIntent === "Buying Intent") {
-    ruleReply = `Hi ${lead.name}, great to hear from you! Let's lock in a quick call to map out details. Plase choose a time that suits you best!`;
-  } else if (detectedIntent === "Price Comparison") {
-    ruleReply = `Hi ${lead.name}, I'll be glad to supply our price list and special catalog packages for ${businessType}. Let me compile your quotation right away!`;
+  // Smart dynamic fallback block if AI model rate limits or fails:
+  const lastMsgOut = messagesOut[messagesOut.length - 1];
+  const lastOutContent = lastMsgOut ? lastMsgOut.content.toLowerCase() : "";
+
+  // Check what keywords exist in the incoming message
+  const hasDimensions = /h\d+|w\d+|g\d+|\d+\s*x\s*\d+|\b\d{2}\s*\*\s*\d{2}\b|\*/i.test(contentLower);
+  const hasQuantity = /\b\d{3,7}\b|qty|\b\d+k\b|thousand|pieces|pcs/i.test(contentLower);
+  const hasPincode = /\b\d{6}\b|pincode|pin code|zipcode|location|delivery to/i.test(contentLower);
+  const hasPrintingPreference = /print|logo|plain|brand|custom/i.test(contentLower);
+
+  let ruleReply = `Hello ${lead.name}, thank you for contacting us! How can we assist you with your packaging needs today?`;
+
+  if (detectedIntent === "Not Interested") {
+    ruleReply = `Understood, ${lead.name}. We will close this inquiry. Thank you for your time!`;
   } else if (detectedIntent === "Support Request") {
-    ruleReply = `Hello ${lead.name}, I am loop-connecting you to our specialized expert team to resolve your query right now. Hang on!`;
-  } else if (detectedIntent === "Not Interested") {
-    ruleReply = `Understood, ${lead.name}. We will silence alerts and close this ticket. Thank you for your time!`;
+    ruleReply = `Hello ${lead.name}, I am connecting you to our support team to assist you further. One moment!`;
+  } else {
+    // Stage-based conversational funnel
+    if (hasPincode) {
+      ruleReply = `Thank you! Our wholesale team is preparing your custom quotation right now and will share the pricing shortly.`;
+    } else if (hasPrintingPreference) {
+      ruleReply = `Got it! To calculate the exact pricing and shipping timeline, could you please provide your delivery location or pincode?`;
+    } else if (hasDimensions || lastOutContent.includes("size") || lastOutContent.includes("dimension")) {
+      ruleReply = `Great, understood on the dimensions! Do you require custom logo printing or plain bags?`;
+    } else if (hasQuantity || lastOutContent.includes("how can we help") || lastOutContent.includes("welcome")) {
+      ruleReply = `We can absolutely help with your order! Could you please let us know the specific size or dimensions you are looking for?`;
+    } else {
+      // Default warm-up greeting
+      ruleReply = `Hello ${lead.name}! We'd love to help you with your eco-friendly packaging needs. What product are you looking for, and what is your approximate quantity?`;
+    }
   }
 
   // Revenue Impact evaluation
@@ -332,6 +353,7 @@ ${aiConfig ? `
         };
       }
     } catch (err: any) {
+      console.error("Gemini AI Decision Error in analyzeLead:", err);
       console.log(`Gemini AI Decision info: fallback evaluated successfully`);
     }
   }
