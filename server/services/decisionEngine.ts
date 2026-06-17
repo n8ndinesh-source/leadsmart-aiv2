@@ -403,15 +403,36 @@ ${aiConfig ? `
     }
   }
 
+  // Derive commercial priority based on new computed lead score:
+  // Hot (>= 71), Cold (<= 30), and Warm (everything in between)
+  const score = decision.leadScore;
+  let derivedPriority = "Warm";
+  if (score >= 71) {
+    derivedPriority = "Hot";
+  } else if (score <= 30) {
+    derivedPriority = "Cold";
+  }
+
   // 5. Update Lead metrics in DB
   await prisma.lead.update({
     where: { id: leadId },
     data: {
-      leadScore: decision.leadScore,
+      leadScore: score,
       aiRecommendation: decision.nextBestAction,
-      urgencyLevel: decision.conversionProbability // place in lead.urgencyLevel as specified in schema
+      urgencyLevel: decision.conversionProbability, // place in lead.urgencyLevel as specified in schema
+      priority: derivedPriority
     }
   });
+
+  if (derivedPriority !== lead.priority) {
+    await prisma.leadActivity.create({
+      data: {
+        leadId,
+        activityType: "PRIORITY_CHANGE",
+        description: `Automated CRM System: Commercial priority changed "${lead.priority}" → "${derivedPriority}" based on lead score ${score}.`
+      }
+    });
+  }
 
   // 6. DB Log - Create an entry in table AIDecisionLog
   await prisma.aIDecisionLog.create({

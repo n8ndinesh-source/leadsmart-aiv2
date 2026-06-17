@@ -2098,7 +2098,19 @@ router.put(["/leads/:id", "/lead/:id"], authenticateToken, async (req: Authentic
     if (status !== undefined) dataToUpdate.status = status;
     if (priority !== undefined) dataToUpdate.priority = priority;
     if (intentScore !== undefined) dataToUpdate.intentScore = intentScore !== null ? Number(intentScore) : null;
-    if (leadScore !== undefined) dataToUpdate.leadScore = leadScore !== null ? Number(leadScore) : null;
+    if (leadScore !== undefined) {
+      const numScore = leadScore !== null ? Number(leadScore) : null;
+      dataToUpdate.leadScore = numScore;
+      if (numScore !== null && priority === undefined) {
+        let derivedPriority = "Warm";
+        if (numScore >= 71) {
+          derivedPriority = "Hot";
+        } else if (numScore <= 30) {
+          derivedPriority = "Cold";
+        }
+        dataToUpdate.priority = derivedPriority;
+      }
+    }
     if (aiRecommendation !== undefined) dataToUpdate.aiRecommendation = aiRecommendation || null;
 
     const updatedLead = await prisma.lead.update({
