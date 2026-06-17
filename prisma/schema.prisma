@@ -142,6 +142,11 @@ model Lead {
   notes            LeadNote[]
   tags             LeadTag[]
   activities       LeadActivity[]
+  
+  // Phase 9 Intent Detection Engine
+  latestIntent     String?
+  intentHistory    String?        @default("[]")
+  leadIntents      LeadIntent[]
 }
 
 model FollowUp {
@@ -233,4 +238,17 @@ model AIPermission {
 
   @@unique([clientId, permissionName])
 }
+
+model LeadIntent {
+  id         String   @id @default(uuid())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  message    String
+  intent     String
+  confidence Float
+  createdAt  DateTime @default(now())
+
+  @@map("lead_intents")
+}
+
 

@@ -1232,6 +1232,19 @@ export function LeadManagementConsole() {
                   onChange={(e) => handleUpdateLeadField(selectedLead.id, "aiRecommendation", e.target.value)}
                 />
               </div>
+
+              {/* Latest Intent Memory */}
+              <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-900/60 mt-2 flex items-center justify-between">
+                <div>
+                  <span className="block text-[9px] text-slate-500 uppercase font-mono tracking-wider">Latest Detected Intent</span>
+                  <span className="text-[11px] text-indigo-450 font-semibold uppercase mt-0.5 block">{selectedLead.latestIntent || "UNKNOWN"}</span>
+                </div>
+                {selectedLead.latestIntent && (
+                  <span className="text-[8px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 px-1.5 py-0.5 rounded font-mono uppercase tracking-tight">
+                    Active Intent
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* TAGGING SYSTEM CONTAINER */}
@@ -1338,6 +1351,86 @@ export function LeadManagementConsole() {
                       </div>
                     </div>
                   ))
+                )}
+              </div>
+            </div>
+
+            {/* LEAD INTENT TIMELINE */}
+            <div className="space-y-2.5">
+              <h4 className="text-white font-semibold text-xs uppercase tracking-wider font-display flex items-center space-x-1">
+                <Brain className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span>Lead Intent Timeline</span>
+              </h4>
+
+              <div className="space-y-2">
+                {!selectedLead.leadIntents || selectedLead.leadIntents.length === 0 ? (
+                  <div className="text-[10px] text-slate-600 text-center py-6 border border-dashed border-slate-900 rounded-xl">
+                    <span>No automated intents detected for this lead yet.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-thin rounded-xl border border-slate-900/40 p-1 bg-slate-950/20">
+                    {selectedLead.leadIntents.map(intentItem => {
+                      // Custom colors based on intent type
+                      let badgeColor = "bg-slate-900/40 text-slate-400 border-slate-800";
+                      switch (intentItem.intent) {
+                        case "PURCHASE_READY":
+                          badgeColor = "bg-emerald-950/40 text-emerald-400 border-emerald-900/60";
+                          break;
+                        case "QUOTE_REQUEST":
+                        case "PRICE_INQUIRY":
+                        case "MOQ_INQUIRY":
+                          badgeColor = "bg-sky-950/40 text-sky-400 border-sky-900/60";
+                          break;
+                        case "MEETING_REQUEST":
+                          badgeColor = "bg-indigo-950/40 text-indigo-450 border-indigo-900/60";
+                          break;
+                        case "PRODUCT_INQUIRY":
+                        case "PRODUCT_INFO":
+                          badgeColor = "bg-blue-950/40 text-blue-400 border-blue-900/60";
+                          break;
+                        case "GREETING":
+                          badgeColor = "bg-purple-950/40 text-purple-400 border-purple-900/60";
+                          break;
+                        case "OBJECTION":
+                          badgeColor = "bg-amber-955/40 text-amber-405 border-amber-900/60";
+                          break;
+                        case "FOLLOWUP_STATUS":
+                          badgeColor = "bg-teal-950/40 text-teal-400 border-teal-900/60";
+                          break;
+                        case "GENERAL_QUESTION":
+                          badgeColor = "bg-pink-950/40 text-pink-400 border-pink-900/60";
+                          break;
+                      }
+
+                      return (
+                        <div 
+                          key={intentItem.id} 
+                          className="bg-slate-950/60 p-3 border border-slate-900/60 rounded-xl space-y-2 text-xs relative mb-2 last:mb-0"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-mono border ${badgeColor}`}>
+                              {intentItem.intent}
+                            </span>
+                            <span className="text-[10px] text-indigo-400 font-mono flex items-center space-x-0.5">
+                              <span>Confidence:</span> 
+                              <span className="font-bold">{intentItem.confidence}%</span>
+                            </span>
+                          </div>
+                          
+                          <p className="text-slate-300 font-light leading-relaxed italic bg-black/20 p-2 rounded-lg border border-slate-950/50">
+                            "{intentItem.message}"
+                          </p>
+
+                          <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono pt-1">
+                            <span className="flex items-center space-x-1">
+                              <Calendar className="w-2.5 h-2.5" />
+                              <span>{new Date(intentItem.createdAt).toLocaleString()}</span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>

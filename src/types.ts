@@ -112,6 +112,15 @@ export interface LeadActivity {
   createdAt: string;
 }
 
+export interface LeadIntent {
+  id: string;
+  leadId: string;
+  message: string;
+  intent: string;
+  confidence: number;
+  createdAt: string;
+}
+
 export interface Lead {
   id: string;
   clientId: string;
@@ -128,11 +137,14 @@ export interface Lead {
   whatsappNumber?: string | null;
   conversationStatus?: string | null;
   urgencyLevel?: string | null;
+  latestIntent?: string | null;
+  intentHistory?: string | null;
   createdAt: string;
   updatedAt: string;
   notes?: LeadNote[];
   tags?: LeadTag[];
   activities?: LeadActivity[];
+  leadIntents?: LeadIntent[];
 }
 
 export interface Message {

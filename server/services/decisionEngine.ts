@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { prisma } from "../db.js";
 import { safeGenerateContent } from "./geminiHelper.js";
+import { processAndSaveMessageIntent } from "./intentDetector.js";
 
 // AI Input Types
 export interface DecisionEngineOutput {
@@ -33,6 +34,40 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
 
   if (!lead) {
     throw new Error(`Lead with ID ${leadId} not found`);
+  }
+
+  // Detect intent BEFORE generating any AI response / analyzing lead
+  const lastInboundMsg = lead.messages
+    .filter(m => m.direction === "IN")
+    .slice(-1)[0];
+
+  if (lastInboundMsg) {
+    const alreadyProcessed = await prisma.leadIntent.findFirst({
+      where: {
+        leadId: leadId,
+        message: lastInboundMsg.content
+      }
+    });
+
+    if (!alreadyProcessed) {
+      console.log(`[Intent Detection Engine] Automatically detecting intent for message: "${lastInboundMsg.content}" before AI analysis.`);
+      await processAndSaveMessageIntent(leadId, lastInboundMsg.content);
+      // Re-fetch lead so we have latestIntent and intentHistory populated in memory!
+      const updatedLead = await prisma.lead.findUnique({
+        where: { id: leadId },
+        include: {
+          messages: {
+            orderBy: { timestamp: "asc" }
+          },
+          followUps: {
+            orderBy: { scheduledAt: "asc" }
+          }
+        }
+      });
+      if (updatedLead) {
+        Object.assign(lead, updatedLead);
+      }
+    }
   }
 
   // 2. Fetch AI Configuration
@@ -276,14 +311,14 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
         .join("\n");
 
       const systemInstruction = `You are a Senior Sales Manager and Business Strategy Auditor analyzing a key client pipeline lead prospect for LeadSmart AI.
-Analyze the provided client file consisting of WhatsApp logs, metadata, follow-up history records, and Client AI Rules.
+Analyze the provided client file consisting of WhatsApp logs, metadata, follow-up history records, customer intent memory signals (latest intent and progressive intent history), and Client AI Rules.
 You must output a single JSON document. Your output must strictly match the following properties exactly:
 - "leadScore": Integer score between 0 and 100 based on interest & interactions.
 - "intent": Exactly one of "Buying Intent", "Inquiry Only", "Price Comparison", "Support Request", or "Not Interested".
 - "conversionProbability": Exactly one of "Low", "Medium", "High".
 - "nextBestAction": A clear action like: "Send follow-up message now", "Offer discount", "Schedule call", "Send quotation", "Wait 24 hours", "Mark as lost lead", or "Escalate to human sales agent". Choose the absolute single best action for this sales opportunity.
 - "followUpRecommendation": Dynamic recommendation to adjust followups (e.g. "Increase urgency for hot leads", "Reduce spam for cold leads", "Stop follow-ups if user is not responding", "Restart follow-ups if re-engaged").
-- "suggestedReply": The absolute best response message text based on the customer's overall requirements and cumulative conversation history.
+- "suggestedReply": The absolute best response message text based on the customer's overall requirements, cumulative conversation history, and classified intent memory.
   CRITICAL RESPONSE STYLE RULES FOR "suggestedReply":
   1. KEEP IT EXTREMELY BRIEF: Limit the suggestedReply to EXACTLY 1 OR 2 SENTENCES (Maximum 35-40 words). No exceptions.
   2. NO LISTS OR BULLET POINTS: Under no circumstances should you list multiple questions, options, or numbered inquiries (such as "1. What size? 2. What printing?").
@@ -292,7 +327,7 @@ You must output a single JSON document. Your output must strictly match the foll
   5. NATURAL ENVELOPIST STYLE: Address actual, core business needs (such as quantities, sizes, printing, or specifications) mentioned anywhere in their recent messages. Maintain extreme brevity and casual-yet-highly-professional human sales energy.
 - "revenueImpact": Exactly one of "Low", "Medium", "High".
 
-Analyze correctly as a smart sales manager prioritizing high conversion, minimum spam, and highlighting high priority revenue lines.`;
+Analyze correctly as a smart sales manager prioritizing high conversion, minimum spam, highlighting high priority revenue lines, and using the customer message intent memory signals.`;
 
       const userPrompt = `
 LEAD PROFILE:
@@ -302,6 +337,8 @@ LEAD PROFILE:
 - Origin Source: ${lead.source}
 - Follow-up attempts count: ${lead.followUpCount}
 - Is Last Response From Client: ${lead.lastResponseFromClient}
+- Latest Detected Customer Intent: ${lead.latestIntent || "UNKNOWN"}
+- Customer Intent Journey / History: ${lead.intentHistory || "[]"}
 
 WHATSAPP CHAT EXCHANGES LOGGER:
 ${chatHistoryStr || "No messages logged yet."}

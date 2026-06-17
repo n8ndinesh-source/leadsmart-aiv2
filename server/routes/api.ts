@@ -7,6 +7,7 @@ import { prisma } from "../db.js";
 import { analyzeLead } from "../services/decisionEngine.js";
 import { handleAICommand } from "../services/aiAssistant.js";
 import { safeGenerateContent, sanitizeModelName } from "../services/geminiHelper.js";
+import { detectMessageIntent, processAndSaveMessageIntent } from "../services/intentDetector.js";
 
 const router = Router();
 
@@ -982,6 +983,25 @@ router.post("/ai/test-connection", authenticateToken, async (req: AuthenticatedR
 });
 
 
+// 5. POST /ai/detect-intent - Custom NLP Intent Classification Endpoint
+router.post("/ai/detect-intent", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { message } = req.body;
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "No customer message provided in 'message' parameter." });
+    }
+    const result = await detectMessageIntent(message);
+    return res.json({
+      intent: result.intent,
+      confidence: result.confidence
+    });
+  } catch (err: any) {
+    console.error("[API Error] detect-intent failed:", err);
+    return res.status(500).json({ error: err.message || "An unexpected error occurred during intent detection." });
+  }
+});
+
+
 // Client dashboard stats (custom client panel information)
 router.get("/client/stats", authenticateToken, requireRole(["CLIENT"]), async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
@@ -1723,7 +1743,8 @@ async function checkLeadAccess(req: AuthenticatedRequest, leadId: string): Promi
     include: {
       notes: { orderBy: { createdAt: "desc" } },
       tags: { orderBy: { createdAt: "desc" } },
-      activities: { orderBy: { createdAt: "desc" } }
+      activities: { orderBy: { createdAt: "desc" } },
+      leadIntents: { orderBy: { createdAt: "desc" } }
     }
   });
   if (!lead) return null;
