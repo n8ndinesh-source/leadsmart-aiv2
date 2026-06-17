@@ -189,6 +189,34 @@ ${messagesStr}
   };
 }
 
+export function mapStageToStatus(stage: string): string {
+  switch (stage) {
+    case "NEW": return "New";
+    case "INQUIRY": return "Interested";
+    case "QUALIFICATION": return "Qualified";
+    case "QUOTATION": return "Quotation Sent";
+    case "NEGOTIATION": return "Negotiation";
+    case "FOLLOWUP": return "Contacted";
+    case "WON": return "Won";
+    case "LOST": return "Lost";
+    default: return "New";
+  }
+}
+
+export function mapStatusToStage(status: string): string {
+  switch (status) {
+    case "New": return "NEW";
+    case "Contacted": return "FOLLOWUP";
+    case "Interested": return "INQUIRY";
+    case "Qualified": return "QUALIFICATION";
+    case "Quotation Sent": return "QUOTATION";
+    case "Negotiation": return "NEGOTIATION";
+    case "Won": return "WON";
+    case "Lost": return "LOST";
+    default: return "NEW";
+  }
+}
+
 /**
  * Process lead pipeline stage updates, log a stage history node if updated, and store inside Lead profile.
  */
@@ -232,13 +260,16 @@ export async function processAndSaveLeadStage(leadId: string): Promise<any> {
       stageJourney.shift();
     }
 
-    // Acknowledge transition: Update Lead profile
+    const targetStatus = mapStageToStatus(newStage);
+
+    // Acknowledge transition: Update Lead profile (both currentStage AND status)
     await prisma.lead.update({
       where: { id: leadId },
       data: {
         currentStage: newStage,
         previousStage: oldStage,
-        stageHistory: JSON.stringify(stageJourney)
+        stageHistory: JSON.stringify(stageJourney),
+        status: targetStatus
       }
     });
 

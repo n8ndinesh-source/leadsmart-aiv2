@@ -8,7 +8,7 @@ import { analyzeLead } from "../services/decisionEngine.js";
 import { handleAICommand } from "../services/aiAssistant.js";
 import { safeGenerateContent, sanitizeModelName } from "../services/geminiHelper.js";
 import { detectMessageIntent, processAndSaveMessageIntent } from "../services/intentDetector.js";
-import { detectLeadStage, processAndSaveLeadStage } from "../services/leadStageEngine.js";
+import { detectLeadStage, processAndSaveLeadStage, mapStatusToStage } from "../services/leadStageEngine.js";
 import { analyzeMissingInformation, analyzeLeadMissingInformation } from "../services/missingInfoEngine.js";
 import { analyzeQualificationSpecs } from "../services/industryQualEngine.js";
 import { generateSalesResponse } from "../services/salesExecutiveEngine.js";
@@ -2095,7 +2095,10 @@ router.put(["/leads/:id", "/lead/:id"], authenticateToken, async (req: Authentic
     if (phoneNumber !== undefined) dataToUpdate.phoneNumber = phoneNumber;
     if (email !== undefined) dataToUpdate.email = email || null;
     if (source !== undefined) dataToUpdate.source = source;
-    if (status !== undefined) dataToUpdate.status = status;
+    if (status !== undefined) {
+      dataToUpdate.status = status;
+      dataToUpdate.currentStage = mapStatusToStage(status);
+    }
     if (priority !== undefined) dataToUpdate.priority = priority;
     if (intentScore !== undefined) dataToUpdate.intentScore = intentScore !== null ? Number(intentScore) : null;
     if (leadScore !== undefined) {
