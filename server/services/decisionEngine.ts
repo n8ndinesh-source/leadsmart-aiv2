@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { prisma } from "../db.js";
+import { safeGenerateContent } from "./geminiHelper.js";
 
 // AI Input Types
 export interface DecisionEngineOutput {
@@ -314,7 +315,7 @@ ${aiConfig ? `
 ` : "No custom configuration configured yet. Apply helpful commercial responses."}
 `;
 
-      const response = await client.models.generateContent({
+      const response = await safeGenerateContent(client, {
         model: clientInfo?.aiModel || "gemini-3.5-flash",
         contents: [
           { role: "user", parts: [{ text: userPrompt }] }

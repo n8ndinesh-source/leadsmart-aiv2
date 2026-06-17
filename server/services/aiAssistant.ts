@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { prisma } from "../db.js";
+import { safeGenerateContent } from "./geminiHelper.js";
 
 export interface AIAssistantOutput {
   message: string;
@@ -454,7 +455,7 @@ export async function handleAICommand(
           
       Ensure strict JSON validation. Do not hallucinate IDs; only use IDs present in the CRM LEADS SNAPSHOT. If the user asks to delete "all junk leads", find the leads with status "Lost" or priority "Cold" or "junk" label, collect their IDs, and request type DELETE_MULTIPLE_LEADS with those IDs.`;
 
-      const response = await client.models.generateContent({
+      const response = await safeGenerateContent(client, {
         model: clientInfo.aiModel || "gemini-3.5-flash",
         contents: [
           { role: "user", parts: [{ text: `CRM CO-PILOT BUSINESS DATABASE CONTEXT:\n${contextString}\n\nUSER COMMAND INPUT: "${input}"` }] }

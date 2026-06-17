@@ -6,6 +6,7 @@ import { authenticateToken, requireRole, AuthenticatedRequest } from "../middlew
 import { prisma } from "../db.js";
 import { analyzeLead } from "../services/decisionEngine.js";
 import { handleAICommand } from "../services/aiAssistant.js";
+import { safeGenerateContent, sanitizeModelName } from "../services/geminiHelper.js";
 
 const router = Router();
 
@@ -909,7 +910,7 @@ router.post("/ai/test-connection", authenticateToken, async (req: AuthenticatedR
       try {
         const ai = new GoogleGenAI({ apiKey });
         // Generate a tiny response to prove authentication validity
-        const response = await ai.models.generateContent({
+        const response = await safeGenerateContent(ai, {
           model: model || "gemini-3.5-flash",
           contents: "Hello",
           config: {
@@ -1323,7 +1324,7 @@ You must output a single JSON document. Your output must strictly match the foll
 `;
 
   try {
-    const response = await client.models.generateContent({
+    const response = await safeGenerateContent(client, {
       model: "gemini-3.5-flash",
       contents: [
         { role: "user", parts: [{ text: `Customer Message to process: "${message}"` }] }
@@ -2183,6 +2184,13 @@ function isDuplicateMessage(messageId: string): boolean {
 // Map to track the timestamp of the latest incoming message per customer phone number (for active debouncing)
 const whatsappLastMessageTimes = new Map<string, number>();
 
+// Map to track active response generation loops per lead (after debounce)
+interface ActiveGenerationState {
+  latestInIdAtStart: string;
+  hasRegeneratedFor: string[];
+}
+const activeLeadGenerations = new Map<string, ActiveGenerationState>();
+
 // 2. POST /webhook/whatsapp - Incoming Message Handler
 router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<any> => {
   try {
@@ -2308,7 +2316,7 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     }
 
     // Store incoming message record IMMEDIATELY so the dashboard catches it in real-time
-    await prisma.message.create({
+    const createdInboundMsg = await prisma.message.create({
       data: {
         leadId: lead.id,
         direction: "IN",
@@ -2316,6 +2324,7 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
         timestamp: new Date()
       }
     });
+    const currentMsgDbId = createdInboundMsg.id;
 
     // Write Activity log of inbound message IMMEDIATELY
     await prisma.leadActivity.create({
@@ -2349,6 +2358,50 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     const leadId = lead.id;
     const finalClient = client;
     const finalPhoneId = phoneId;
+
+    // Check if another thread is currently processing/generating for this lead
+    let activeGen = activeLeadGenerations.get(leadId);
+    let handledByOther = false;
+
+    if (activeGen) {
+      console.log(`[Anti Double Reply Bypass] Another thread is currently processing/generating for lead ${leadId}. Current thread will wait for it to complete...`);
+      const startTime = Date.now();
+      // Keep waiting while the same active generation is running (up to 10 seconds)
+      while (activeLeadGenerations.get(leadId) === activeGen && Date.now() - startTime < 10000) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+      console.log(`[Anti Double Reply Bypass] Previous thread finished. Checking if it regenerated for our message ${currentMsgDbId}...`);
+      
+      // Now check if the completed generation took care of our message
+      if (activeGen.hasRegeneratedFor.includes(currentMsgDbId)) {
+        handledByOther = true;
+      } else {
+        // Fallback: look up in DB to see if an OUT message was written after our message
+        const latestIn = await prisma.message.findFirst({
+          where: { leadId, direction: "IN" },
+          orderBy: { timestamp: "desc" }
+        });
+        const latestOut = await prisma.message.findFirst({
+          where: { leadId, direction: "OUT" },
+          orderBy: { timestamp: "desc" }
+        });
+        if (latestIn && latestOut && latestOut.timestamp > latestIn.timestamp) {
+          handledByOther = true;
+        }
+      }
+
+      if (handledByOther) {
+        console.log(`[Anti Double Reply Bypass] Skipping AI reply for ${from}. The previous active loop already regenerated/sent a response for the latest message ${currentMsgDbId}.`);
+        return res.status(200).json({ status: "skipped_already_replied_by_other_thread", messageId });
+      }
+    }
+
+    // Now we are actively generating for this lead! Register this run in the tracking map.
+    const myGenState: ActiveGenerationState = {
+      latestInIdAtStart: currentMsgDbId,
+      hasRegeneratedFor: [currentMsgDbId]
+    };
+    activeLeadGenerations.set(leadId, myGenState);
 
     try {
       console.log(`[Debounce Triggered] Processing consolidated WhatsApp AI analysis response for ${from}`);
@@ -2431,6 +2484,13 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
           if (currentLatestIn && latestInAtStart && currentLatestIn.id !== latestInAtStart.id) {
             console.log(`[Outdated Response Detected] A parent message was appended or changed from "${latestInAtStart.content}" (ID: ${latestInAtStart.id}) to "${currentLatestIn.content}" (ID: ${currentLatestIn.id}) during generation. Regenerating response with updated context.`);
             latestInAtStart = currentLatestIn;
+
+            // Register this ID in the active loop's tracking state so other waiting threads know we've taken care of it!
+            const act = activeLeadGenerations.get(leadId);
+            if (act) {
+              act.hasRegeneratedFor.push(currentLatestIn.id);
+            }
+
             continue; // Loop again to generate a new fresh response!
           }
 
@@ -2493,6 +2553,9 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
       }
     } catch (debounceErr) {
       console.error(`Error executing debounced WhatsApp transaction for ${from}:`, debounceErr);
+    } finally {
+      // Clean up tracking map for this lead
+      activeLeadGenerations.delete(leadId);
     }
 
     return res.status(200).json({ status: "accepted", messageId });
@@ -3056,7 +3119,7 @@ Rules:
 - Incorporate the company's specified tone. 
 - Keep the output short (under 250 characters), professional, and natural. Do NOT use headers, email lines, quotes, or any brackets placeholder.
 `;
-      const response = await gClient.models.generateContent({
+      const response = await safeGenerateContent(gClient, {
         model: "gemini-3.5-flash",
         contents: prompt
       });

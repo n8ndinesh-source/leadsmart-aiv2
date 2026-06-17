@@ -42,7 +42,7 @@ model Client {
 
   // Custom AI Assistant configuration and custom LLM API Key
   aiProvider                 String?       @default("gemini")
-  aiModel                    String?       @default("gemini-2.0-flash")
+  aiModel                    String?       @default("gemini-3.5-flash")
   aiApiKey                   String?
   aiAssistantName            String?       @default("LeadSmart AI")
 
