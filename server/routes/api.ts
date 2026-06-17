@@ -3669,6 +3669,36 @@ router.get("/ai-insights", authenticateToken, async (req: AuthenticatedRequest, 
           // fallback to deterministic rule values if analysis fails
         }
       }
+
+      // Synchronize database Lead priority & score on-the-fly with the matched AI Decision log
+      if (decision) {
+        const score = decision.leadScore;
+        let derivedPriority = "Warm";
+        if (score >= 71) {
+          derivedPriority = "Hot";
+        } else if (score <= 30) {
+          derivedPriority = "Cold";
+        }
+
+        if (l.leadScore !== score || l.priority !== derivedPriority) {
+          try {
+            await prisma.lead.update({
+              where: { id: l.id },
+              data: {
+                leadScore: score,
+                priority: derivedPriority,
+                aiRecommendation: decision.nextBestAction
+              }
+            });
+            l.leadScore = score;
+            l.priority = derivedPriority;
+            l.aiRecommendation = decision.nextBestAction;
+          } catch (err) {
+            console.error("Failed to automatically synchronize lead score/priority inside ai-insights API:", err);
+          }
+        }
+      }
+
       return {
         ...l,
         leadScore: decision ? decision.leadScore : (l.leadScore || 35),

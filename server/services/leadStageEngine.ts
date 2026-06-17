@@ -235,10 +235,11 @@ export async function processAndSaveLeadStage(leadId: string): Promise<any> {
   const auditResult = await detectLeadStage(leadId);
   const oldStage = lead.currentStage || "NEW";
   const newStage = auditResult.leadStage;
+  const targetStatus = mapStageToStatus(newStage);
 
-  // 3. Update stage if required
-  if (oldStage !== newStage) {
-    console.log(`[Stage Transition] Lead ${lead.name} transitioning from ${oldStage} -> ${newStage} with confidence ${auditResult.confidence}%`);
+  // 3. Update stage if required or if status is out of sync
+  if (oldStage !== newStage || lead.status !== targetStatus) {
+    console.log(`[Stage Transition] Lead ${lead.name} transitioning from ${oldStage} -> ${newStage} (status: "${lead.status}" -> "${targetStatus}") with confidence ${auditResult.confidence}%`);
 
     // Parse existing stage history
     let stageJourney: string[] = [];
@@ -259,8 +260,6 @@ export async function processAndSaveLeadStage(leadId: string): Promise<any> {
     if (stageJourney.length > 50) {
       stageJourney.shift();
     }
-
-    const targetStatus = mapStageToStatus(newStage);
 
     // Acknowledge transition: Update Lead profile (both currentStage AND status)
     await prisma.lead.update({

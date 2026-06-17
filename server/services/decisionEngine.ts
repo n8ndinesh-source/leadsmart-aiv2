@@ -42,6 +42,8 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
     .filter(m => m.direction === "IN")
     .slice(-1)[0];
 
+  let shouldRefetch = false;
+
   if (lastInboundMsg) {
     const alreadyProcessed = await prisma.leadIntent.findFirst({
       where: {
@@ -53,25 +55,34 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
     if (!alreadyProcessed) {
       console.log(`[Intent Detection Engine] Automatically detecting intent for message: "${lastInboundMsg.content}" before AI analysis.`);
       await processAndSaveMessageIntent(leadId, lastInboundMsg.content);
+      shouldRefetch = true;
+    }
+  }
 
-      console.log(`[Pipeline Stage Engine] Automatically evaluating pipeline stage before AI analysis.`);
-      await processAndSaveLeadStage(leadId);
+  // Always evaluate and synchronize pipeline stage/status during lead analysis
+  console.log(`[Pipeline Stage Engine] Evaluating live pipeline stage and status...`);
+  try {
+    await processAndSaveLeadStage(leadId);
+    shouldRefetch = true;
+  } catch (err) {
+    console.error("[Pipeline Stage Engine] Failed to process lead stage:", err);
+  }
 
-      // Re-fetch lead so we have latestIntent and intentHistory populated in memory!
-      const updatedLead = await prisma.lead.findUnique({
-        where: { id: leadId },
-        include: {
-          messages: {
-            orderBy: { timestamp: "asc" }
-          },
-          followUps: {
-            orderBy: { scheduledAt: "asc" }
-          }
+  if (shouldRefetch) {
+    // Re-fetch lead so we have latestIntent, intentHistory, currentStage and status populated in memory!
+    const updatedLead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        messages: {
+          orderBy: { timestamp: "asc" }
+        },
+        followUps: {
+          orderBy: { scheduledAt: "asc" }
         }
-      });
-      if (updatedLead) {
-        Object.assign(lead, updatedLead);
       }
+    });
+    if (updatedLead) {
+      Object.assign(lead, updatedLead);
     }
   }
 
