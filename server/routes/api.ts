@@ -12,6 +12,7 @@ import { detectLeadStage, processAndSaveLeadStage } from "../services/leadStageE
 import { analyzeMissingInformation, analyzeLeadMissingInformation } from "../services/missingInfoEngine.js";
 import { analyzeQualificationSpecs } from "../services/industryQualEngine.js";
 import { generateSalesResponse } from "../services/salesExecutiveEngine.js";
+import { evaluatePipelineStateAfterMessage } from "../services/pipelineHooks.js";
 
 const router = Router();
 
@@ -2522,6 +2523,9 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     });
     const currentMsgDbId = createdInboundMsg.id;
 
+    // Evaluate pipeline stage/status transition rules for inbound quotation asks
+    await evaluatePipelineStateAfterMessage(lead.id, "IN", body);
+
     // Write Activity log of inbound message IMMEDIATELY
     await prisma.leadActivity.create({
       data: {
@@ -2704,6 +2708,9 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
           }
         });
 
+        // Evaluate pipeline stage/status transitions for outgoing quotations
+        await evaluatePipelineStateAfterMessage(leadId, "OUT", replyText);
+
         // Sync lead timeline metrics
         await prisma.lead.update({
           where: { id: leadId },
@@ -2822,6 +2829,9 @@ router.post("/send-message", authenticateToken, async (req: AuthenticatedRequest
         timestamp: new Date()
       }
     });
+
+    // Evaluate pipeline stage/status transitions for outgoing quotations
+    await evaluatePipelineStateAfterMessage(leadId, "OUT", message);
 
     // Update Lead lastMessageAt time
     await prisma.lead.update({
@@ -3348,6 +3358,9 @@ async function triggerFollowUpWhatsApp(client: any, lead: any, message: string) 
       timestamp: new Date()
     }
   });
+
+  // Evaluate pipeline stage/status transitions for outgoing quotations
+  await evaluatePipelineStateAfterMessage(lead.id, "OUT", message);
 
   // Fetch Meta verification token
   if (client.whatsappToken && client.whatsappPhoneId) {

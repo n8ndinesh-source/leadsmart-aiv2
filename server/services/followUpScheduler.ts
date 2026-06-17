@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from '../db.js';
 import { analyzeLead } from './decisionEngine.js';
+import { evaluatePipelineStateAfterMessage } from './pipelineHooks.js';
 
 export const startFollowUpScheduler = () => {
   // Run every 10 minutes to check if any leads need followups
@@ -98,6 +99,9 @@ export const startFollowUpScheduler = () => {
                 timestamp: new Date()
               }
             });
+
+            // Evaluate pipeline stage/status transitions for outgoing quotations
+            await evaluatePipelineStateAfterMessage(lead.id, "OUT", insight.suggestedReply);
 
             await prisma.leadActivity.create({
               data: {
