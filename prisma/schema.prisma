@@ -147,6 +147,12 @@ model Lead {
   latestIntent     String?
   intentHistory    String?        @default("[]")
   leadIntents      LeadIntent[]
+
+  // Lead Stage Engine
+  currentStage     String         @default("NEW")
+  previousStage    String?
+  stageHistory     String?        @default("[]")
+  leadStageHistories LeadStageHistory[]
 }
 
 model FollowUp {
@@ -249,6 +255,19 @@ model LeadIntent {
   createdAt  DateTime @default(now())
 
   @@map("lead_intents")
+}
+
+model LeadStageHistory {
+  id         String   @id @default(uuid())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  oldStage   String
+  newStage   String
+  reason     String
+  confidence Float
+  createdAt  DateTime @default(now())
+
+  @@map("lead_stage_history")
 }
 
 

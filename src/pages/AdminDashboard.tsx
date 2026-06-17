@@ -597,6 +597,71 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Lead Pipeline Section */}
+                <div className="p-6 rounded-2xl border border-slate-900 bg-[#070b19]/35 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-900/60 pb-3">
+                    <div>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-display flex items-center space-x-2">
+                        <Layers className="w-4 h-4 text-indigo-400" />
+                        <span>Lead Pipeline Audit</span>
+                      </h3>
+                      <p className="text-[10px] text-slate-500 font-light mt-0.5">
+                        Real-time pipeline statistics mapped to audited lead intent signals and operational milestones.
+                      </p>
+                    </div>
+                    <span className="text-[9px] bg-slate-950 px-2 py-0.5 rounded font-mono text-indigo-400 border border-indigo-950 shrink-0">
+                      Live Stages Count
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                    {[
+                      { key: "NEW", label: "NEW", desc: "Captured", border: "border-slate-800/40", bg: "bg-slate-950/40", text: "text-slate-400", pulse: false },
+                      { key: "INQUIRY", label: "INQUIRY", desc: "First Contact", border: "border-sky-900/30", bg: "bg-sky-950/20", text: "text-sky-450", pulse: false },
+                      { key: "QUALIFICATION", label: "QUALIFICATION", desc: "Evaluating", border: "border-indigo-900/30", bg: "bg-indigo-950/20", text: "text-indigo-400", pulse: false },
+                      { key: "QUOTATION", label: "QUOTATION", desc: "Estimating", border: "border-pink-900/30", bg: "bg-pink-950/20", text: "text-pink-400", pulse: false },
+                      { key: "NEGOTIATION", label: "NEGOTIATION", desc: "Finalizing", border: "border-amber-900/30", bg: "bg-amber-950/20", text: "text-amber-450", pulse: false },
+                      { key: "FOLLOWUP", label: "FOLLOWUP", desc: "Check post-quote", border: "border-orange-900/30", bg: "bg-orange-950/20", text: "text-orange-450", pulse: false },
+                      { key: "WON", label: "WON", desc: "Signed Order", border: "border-emerald-900/40", bg: "bg-emerald-950/20", text: "text-emerald-440", pulse: true },
+                      { key: "LOST", label: "LOST", desc: "Disengaged", border: "border-rose-900/30", bg: "bg-rose-950/20", text: "text-rose-450", pulse: false },
+                    ].map((stage) => {
+                      const count = stats?.stageCounts?.[stage.key] ?? 0;
+                      return (
+                        <div 
+                          key={stage.key} 
+                          className={`p-3.5 rounded-xl border ${stage.border} ${stage.bg} hover:border-indigo-500/30 transition-all flex flex-col justify-between group cursor-default relative overflow-hidden`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[9px] font-bold font-mono tracking-wider text-slate-500 group-hover:text-slate-400 transition-colors uppercase truncate">
+                                {stage.label}
+                              </span>
+                              {stage.pulse && count > 0 && (
+                                <span className="flex h-1.5 w-1.5 relative">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                </span>
+                              )}
+                            </div>
+                            <span className="block text-[8px] text-slate-500 truncate leading-none">
+                              {stage.desc}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-baseline justify-between mt-4">
+                            <span className={`text-lg font-bold font-display leading-none ${stage.text}`}>
+                              {count}
+                            </span>
+                            <span className="text-[8px] text-slate-600 font-light italic">
+                              leads
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Integration tips row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-6 rounded-2xl border border-[#141b36] bg-[#0c1229]/20 relative overflow-hidden flex flex-col justify-between space-y-4">

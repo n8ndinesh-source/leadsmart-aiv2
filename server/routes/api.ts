@@ -8,6 +8,10 @@ import { analyzeLead } from "../services/decisionEngine.js";
 import { handleAICommand } from "../services/aiAssistant.js";
 import { safeGenerateContent, sanitizeModelName } from "../services/geminiHelper.js";
 import { detectMessageIntent, processAndSaveMessageIntent } from "../services/intentDetector.js";
+import { detectLeadStage, processAndSaveLeadStage } from "../services/leadStageEngine.js";
+import { analyzeMissingInformation, analyzeLeadMissingInformation } from "../services/missingInfoEngine.js";
+import { analyzeQualificationSpecs } from "../services/industryQualEngine.js";
+import { generateSalesResponse } from "../services/salesExecutiveEngine.js";
 
 const router = Router();
 
@@ -82,12 +86,22 @@ router.get("/admin/stats", authenticateToken, requireRole(["ADMIN"]), async (req
     
     const monthlyRevenue = activeSubscriptions.reduce((acc, curr) => acc + curr.price, 0);
 
+    // Calculate lead pipeline stage counts for the live pipeline display
+    const stages = ["NEW", "INQUIRY", "QUALIFICATION", "QUOTATION", "NEGOTIATION", "FOLLOWUP", "WON", "LOST"];
+    const stageCounts: Record<string, number> = {};
+    for (const s of stages) {
+      stageCounts[s] = await prisma.lead.count({
+        where: { currentStage: s }
+      });
+    }
+
     res.json({
       totalClients,
       trialClients,
       activeClients,
       expiredClients,
       monthlyRevenue,
+      stageCounts,
     });
   } catch (error) {
     console.error("Admin stats fetch error:", error);
@@ -1001,6 +1015,150 @@ router.post("/ai/detect-intent", async (req: Request, res: Response): Promise<an
   }
 });
 
+// POST /ai/detect-stage - Custom Lead Pipeline Stage Detection & Synced Saving
+router.post("/ai/detect-stage", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { leadId } = req.body;
+    if (!leadId || typeof leadId !== "string") {
+      return res.status(400).json({ error: "No leadId provided in request parameters." });
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId }
+    });
+    if (!lead) {
+      return res.status(404).json({ error: `Lead with ID '${leadId}' not found.` });
+    }
+
+    // Run stage classification
+    const result = await detectLeadStage(leadId);
+
+    // Sync pipeline status changes to database & create transition history logs
+    await processAndSaveLeadStage(leadId);
+
+    return res.json({
+      leadStage: result.leadStage,
+      confidence: result.confidence,
+      reason: result.reason
+    });
+  } catch (err: any) {
+    console.error("[API Error] detect-stage failed:", err);
+    return res.status(500).json({ error: err.message || "An unexpected error occurred during lead stage auditing." });
+  }
+});
+
+// POST /api/ai/missing-info - LeadSmart AI Missing Information Engine
+router.post("/api/ai/missing-info", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { 
+      leadId,
+      businessType, business_type,
+      leadStage, lead_stage,
+      leadMemory, lead_memory
+    } = req.body;
+
+    if (leadId && typeof leadId === "string") {
+      // Find lead
+      const dbLead = await prisma.lead.findUnique({
+        where: { id: leadId }
+      });
+      if (!dbLead) {
+        return res.status(404).json({ error: `Lead with ID '${leadId}' not found.` });
+      }
+      const dbResult = await analyzeLeadMissingInformation(leadId);
+      return res.json(dbResult);
+    }
+
+    // Direct text payload interpretation
+    const chosenType = businessType || business_type;
+    const chosenStage = leadStage || lead_stage;
+    const chosenMemory = leadMemory || lead_memory;
+
+    if (!chosenType) {
+      return res.status(400).json({ error: "Missing required businessType or business_type value." });
+    }
+
+    const result = await analyzeMissingInformation(
+      chosenType,
+      chosenStage || "NEW",
+      chosenMemory || ""
+    );
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error("[API Error] missing-info failed:", err);
+    return res.status(500).json({ error: err.message || "An unexpected error occurred in Missing Information Engine." });
+  }
+});
+
+// POST /api/ai/industry-qualification - Industry Qualification Engine
+router.post("/api/ai/industry-qualification", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const {
+      businessCategory, business_category,
+      businessDescription, business_description,
+      productsOrServices, products_or_services, products
+    } = req.body;
+
+    const category = businessCategory || business_category;
+    const desc = businessDescription || business_description;
+    const productsList = productsOrServices || products_or_services || products;
+
+    if (!category) {
+      return res.status(400).json({ error: "Missing required businessCategory or business_category." });
+    }
+
+    const result = await analyzeQualificationSpecs(
+      category,
+      desc || "",
+      productsList || ""
+    );
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error("[API Error] industry-qualification failed:", err);
+    return res.status(500).json({ error: err.message || "An unexpected error occurred in Industry Qualification Engine." });
+  }
+});
+
+// POST /api/ai/sales-response - Sales Response Agent Engine
+router.post("/api/ai/sales-response", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const {
+      businessProfile, business_profile,
+      leadMemory, lead_memory,
+      leadStage, lead_stage,
+      intent,
+      missingFields, missing_fields,
+      customerMessage, customer_message
+    } = req.body;
+
+    const profile = businessProfile || business_profile;
+    const memory = leadMemory || lead_memory;
+    const stage = leadStage || lead_stage;
+    const missing = missingFields || missing_fields;
+    const msg = customerMessage || customer_message;
+
+    if (!msg) {
+      return res.status(400).json({ error: "Missing required customerMessage or customer_message." });
+    }
+
+    const result = await generateSalesResponse(
+      profile || "General Sales Inbound",
+      memory || "",
+      stage || "NEW",
+      intent || "Inquiry Only",
+      typeof missing === "string" ? missing : Array.isArray(missing) ? missing.join(", ") : "None",
+      msg
+    );
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error("[API Error] sales-response failed:", err);
+    return res.status(500).json({ error: err.message || "An unexpected error occurred in Sales Response Engine." });
+  }
+});
+
 
 // Client dashboard stats (custom client panel information)
 router.get("/client/stats", authenticateToken, requireRole(["CLIENT"]), async (req: AuthenticatedRequest, res): Promise<any> => {
@@ -1744,7 +1902,8 @@ async function checkLeadAccess(req: AuthenticatedRequest, leadId: string): Promi
       notes: { orderBy: { createdAt: "desc" } },
       tags: { orderBy: { createdAt: "desc" } },
       activities: { orderBy: { createdAt: "desc" } },
-      leadIntents: { orderBy: { createdAt: "desc" } }
+      leadIntents: { orderBy: { createdAt: "desc" } },
+      leadStageHistories: { orderBy: { createdAt: "desc" } }
     }
   });
   if (!lead) return null;
@@ -1839,6 +1998,22 @@ router.get(["/leads/:id", "/lead/:id"], authenticateToken, async (req: Authentic
   } catch (error) {
     console.error("Error fetching lead metadata:", error);
     res.status(500).json({ error: "Failed to retrieve lead specifications." });
+  }
+});
+
+// GET /api/leads/:id/missing-info - Retrieve live checklist completeness, missing fields & next question
+router.get(["/leads/:id/missing-info", "/lead/:id/missing-info"], authenticateToken, async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const isAllowed = await checkLeadAccess(req, req.params.id);
+    if (!isAllowed) {
+      return res.status(404).json({ error: "Lead not found or access denied." });
+    }
+
+    const info = await analyzeLeadMissingInformation(req.params.id);
+    return res.json(info);
+  } catch (error: any) {
+    console.error("[API Error] Failed to compute missing-info checklist for lead:", error);
+    return res.status(500).json({ error: error.message || "Failed to retrieve candidate missing information checklist." });
   }
 });
 

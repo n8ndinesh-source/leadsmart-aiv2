@@ -88,6 +88,7 @@ export interface AdminStats {
   activeClients: number;
   expiredClients: number;
   monthlyRevenue: number;
+  stageCounts?: Record<string, number>;
 }
 
 export interface LeadNote {
@@ -139,12 +140,16 @@ export interface Lead {
   urgencyLevel?: string | null;
   latestIntent?: string | null;
   intentHistory?: string | null;
+  currentStage?: string;
+  previousStage?: string | null;
+  stageHistory?: string | null;
   createdAt: string;
   updatedAt: string;
   notes?: LeadNote[];
   tags?: LeadTag[];
   activities?: LeadActivity[];
   leadIntents?: LeadIntent[];
+  leadStageHistories?: any[];
 }
 
 export interface Message {

@@ -2,6 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { prisma } from "../db.js";
 import { safeGenerateContent } from "./geminiHelper.js";
 import { processAndSaveMessageIntent } from "./intentDetector.js";
+import { processAndSaveLeadStage } from "./leadStageEngine.js";
 
 // AI Input Types
 export interface DecisionEngineOutput {
@@ -52,6 +53,10 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
     if (!alreadyProcessed) {
       console.log(`[Intent Detection Engine] Automatically detecting intent for message: "${lastInboundMsg.content}" before AI analysis.`);
       await processAndSaveMessageIntent(leadId, lastInboundMsg.content);
+
+      console.log(`[Pipeline Stage Engine] Automatically evaluating pipeline stage before AI analysis.`);
+      await processAndSaveLeadStage(leadId);
+
       // Re-fetch lead so we have latestIntent and intentHistory populated in memory!
       const updatedLead = await prisma.lead.findUnique({
         where: { id: leadId },
@@ -339,6 +344,8 @@ LEAD PROFILE:
 - Is Last Response From Client: ${lead.lastResponseFromClient}
 - Latest Detected Customer Intent: ${lead.latestIntent || "UNKNOWN"}
 - Customer Intent Journey / History: ${lead.intentHistory || "[]"}
+- Current Sales Stage: ${(lead as any).currentStage || "NEW"}
+- Sales Stage Transition History: ${(lead as any).stageHistory || "[]"}
 
 WHATSAPP CHAT EXCHANGES LOGGER:
 ${chatHistoryStr || "No messages logged yet."}

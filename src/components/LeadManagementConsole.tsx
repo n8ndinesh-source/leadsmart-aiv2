@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   Users, Search, Plus, Phone, Mail, Calendar, Tag, MessageSquare, 
   Clock, ArrowRight, Trash2, X, Brain, CheckCircle2, XCircle, 
-  LayoutGrid, ListFilter, Play, Sparkles, RefreshCw, Upload, FileText, ChevronRight, Check, AlertTriangle
+  LayoutGrid, ListFilter, Play, Sparkles, RefreshCw, Upload, FileText, ChevronRight, Check, AlertTriangle,
+  Layers
 } from "lucide-react";
 import { api } from "../services/api";
 import { Lead, LeadNote, LeadTag, LeadActivity } from "../types";
@@ -67,6 +68,11 @@ export function LeadManagementConsole() {
   
   // Drag and Drop State
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+
+  // Missing Information Checklist States
+  const [checklistLoading, setChecklistLoading] = useState<boolean>(false);
+  const [checklistResult, setChecklistResult] = useState<any>(null);
+  const [checklistError, setChecklistError] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const animationFrameId = useRef<number | null>(null);
   const scrollSpeed = useRef<number>(0);
@@ -157,18 +163,35 @@ export function LeadManagementConsole() {
     }
   };
 
+  const fetchLeadChecklist = async (leadId: string) => {
+    try {
+      setChecklistLoading(true);
+      setChecklistError(null);
+      const data = await api.get<any>(`/leads/${leadId}/missing-info`);
+      setChecklistResult(data);
+    } catch (err: any) {
+      console.error("Failed to load Lead Missing Information Checklist:", err);
+      setChecklistResult(null);
+      setChecklistError(err.message || "Failed to audit checklist.");
+    } finally {
+      setChecklistLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedLeadId) {
       setSidebarTab("profile");
       fetchLeadMessages(selectedLeadId);
+      fetchLeadChecklist(selectedLeadId);
 
-      // Auto poll every 8 seconds when active in sidebar
+      // Auto poll messages every 8 seconds when active in sidebar
       const interval = setInterval(() => {
         fetchLeadMessages(selectedLeadId);
       }, 8000);
       return () => clearInterval(interval);
     } else {
       setWhatsappMessages([]);
+      setChecklistResult(null);
     }
   }, [selectedLeadId]);
 
@@ -1243,6 +1266,204 @@ export function LeadManagementConsole() {
                   <span className="text-[8px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 px-1.5 py-0.5 rounded font-mono uppercase tracking-tight">
                     Active Intent
                   </span>
+                )}
+              </div>
+            </div>
+
+            {/* MISSING INFORMATION CHECKLIST & QUALIFIER AUDIT */}
+            <div className="space-y-3 bg-[#040817] p-4 border border-slate-900 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5">
+                  <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <h4 className="font-display font-bold text-xs uppercase text-slate-200 tracking-wider">Qualification Checklist</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectedLeadId && fetchLeadChecklist(selectedLeadId)}
+                  disabled={checklistLoading}
+                  className="p-1 rounded bg-[#02050b] text-slate-400 hover:text-white border border-slate-900/60 disabled:opacity-40 transition-all cursor-pointer"
+                  title="Force AI Audit Re-Trigger"
+                >
+                  <RefreshCw className={`w-3 h-3 ${checklistLoading ? "animate-spin text-emerald-400" : ""}`} />
+                </button>
+              </div>
+
+              {checklistLoading ? (
+                <div className="space-y-2 py-3 text-center">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto text-emerald-400" />
+                  <span className="text-[10px] text-slate-500 font-mono">Running lead memory AI audit...</span>
+                </div>
+              ) : checklistError ? (
+                <div className="p-2 border border-rose-950 bg-rose-950/15 rounded text-rose-500 text-[10px] flex items-center space-x-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Checklist Error: {checklistError}</span>
+                </div>
+              ) : checklistResult ? (
+                <div className="space-y-3">
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                      <span>Live Audit Completeness</span>
+                      <span className="font-bold text-emerald-400">{checklistResult.completionPercentage}%</span>
+                    </div>
+                    <div className="w-full bg-[#030611] h-1.5 rounded-full overflow-hidden border border-slate-900/60">
+                      <div 
+                        className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                        style={{ width: `${checklistResult.completionPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Industry checklist check items */}
+                  <div className="bg-[#02050b]/80 p-2.5 rounded-lg border border-slate-950 space-y-2">
+                    <span className="text-[8px] text-slate-500 uppercase tracking-widest block font-mono">
+                      Business Focus: {checklistResult.resolvedBusinessType || "General Selection"}
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      {(
+                        checklistResult.resolvedBusinessType === "Packaging" ? ["product", "quantity", "size", "location"] :
+                        checklistResult.resolvedBusinessType === "Real Estate" ? ["propertyType", "budget", "location", "purchaseTimeline"] :
+                        ["product", "budget", "occasion", "purchaseDate"]
+                      ).map((field: string) => {
+                        const isMissing = checklistResult.missingFields?.some(
+                          (m: string) => m.toLowerCase() === field.toLowerCase()
+                        );
+                        return (
+                          <div 
+                            key={field} 
+                            className={`p-1.5 rounded border text-[10px] flex items-start space-x-1.5 truncate transition-all ${
+                              isMissing 
+                                ? "bg-slate-950/20 border-slate-900/50 text-slate-500" 
+                                : "bg-emerald-950/10 border-emerald-950/40 text-emerald-400 font-medium"
+                            }`}
+                          >
+                            {isMissing ? (
+                              <XCircle className="w-3.5 h-3.5 text-slate-600 shrink-0 mt-0.5" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            )}
+                            <span className="capitalize truncate leading-snug">{field.replace(/([A-Z])/g, ' $1')}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Next Question Advice Card */}
+                  {checklistResult.nextQuestion && (
+                    <div className="p-3 bg-[#02050b]/60 border border-slate-900/80 rounded-lg space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] text-indigo-400 uppercase tracking-widest font-mono font-bold leading-none">
+                          Next Suggested Question ({checklistResult.nextRequiredField || "General Inquiry"})
+                        </span>
+                        <span className="text-[8px] text-slate-500 leading-none">WhatsApp Draft</span>
+                      </div>
+                      <p className="text-[10.5px] font-light text-slate-300 leading-relaxed italic bg-slate-950/40 p-2 border border-slate-1000 rounded-md">
+                        &quot;{checklistResult.nextQuestion}&quot;
+                      </p>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setManualMessage(checklistResult.nextQuestion);
+                          setSidebarTab("whatsapp");
+                        }}
+                        className="w-full py-1 px-2.5 rounded bg-indigo-950/30 text-indigo-400 hover:bg-indigo-900/20 border border-indigo-900/30 text-[9px] font-mono font-bold uppercase tracking-wider flex items-center justify-center space-x-1 transition-all cursor-pointer"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        <span>Load as WhatsApp Draft</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-500 text-center py-2 italic font-mono">
+                  Wait for Lead context parsing details...
+                </div>
+              )}
+            </div>
+
+            {/* LEAD STAGE PIPELINE TRANSITION TIMELINE */}
+            <div className="space-y-3 bg-[#030611] p-4 border border-slate-900 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5">
+                  <Layers className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <h4 className="font-display font-bold text-xs uppercase text-slate-200 tracking-wider">Pipeline Stage Journey</h4>
+                </div>
+                <span className="text-[8px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 px-2 py-0.5 rounded font-mono uppercase tracking-wide">
+                  Autodetected Stages
+                </span>
+              </div>
+
+              {/* Display current & previous state cleanly */}
+              <div className="grid grid-cols-2 gap-2 bg-[#02050b]/80 p-2.5 rounded-lg border border-slate-950">
+                <div className="text-center p-1.5 rounded bg-[#030611]/60 border border-slate-900/60">
+                  <span className="text-[8px] text-slate-500 uppercase tracking-widest block font-mono">Current Stage</span>
+                  <span className="text-[11px] font-extrabold text-indigo-400 uppercase mt-1 block">
+                    {selectedLead.currentStage || "NEW"}
+                  </span>
+                </div>
+                <div className="text-center p-1.5 rounded bg-[#030611]/60 border border-slate-900/60">
+                  <span className="text-[8px] text-slate-500 uppercase tracking-widest block font-mono">Previous Stage</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase mt-1 block">
+                    {selectedLead.previousStage || "None"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Vertical timeline map */}
+              <div className="space-y-3 pt-1">
+                {!selectedLead.leadStageHistories || selectedLead.leadStageHistories.length === 0 ? (
+                  <div className="text-[10px] text-slate-600 text-center py-4 border border-dashed border-slate-900 rounded-xl">
+                    <span>No stage transitions recorded yet. Initial stage is assumed NEW.</span>
+                  </div>
+                ) : (
+                  <div className="relative border-l border-slate-800/80 ml-3.5 pl-5 space-y-4 pt-1.5 pb-1 max-h-[250px] overflow-y-auto scrollbar-thin pr-1">
+                    {selectedLead.leadStageHistories.map((hist, index) => {
+                      return (
+                        <div key={hist.id || index} className="relative group">
+                          {/* Timeline node circle */}
+                          <div className="absolute -left-[27.5px] top-1 w-3.5 h-3.5 rounded-full bg-[#050917] border-2 border-slate-700 group-hover:border-indigo-500 transition-colors flex items-center justify-center shrink-0 z-10">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                          </div>
+
+                          <div className="space-y-1">
+                            {/* Header: stages transfer & date */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center space-x-1 font-mono text-[9.5px]">
+                                <span className="font-bold text-slate-400">{hist.oldStage}</span>
+                                <ArrowRight className="w-3 h-3 text-slate-500" />
+                                <span className="font-extrabold text-indigo-400">{hist.newStage}</span>
+                              </div>
+                              <span className="text-[8.5px] text-slate-505 font-mono">
+                                {new Date(hist.createdAt).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </span>
+                            </div>
+
+                            {/* Body: Reason & confidence */}
+                            {hist.reason && (
+                              <p className="text-[10.5px] font-light text-slate-350 leading-relaxed italic bg-[#02050b]/60 p-2 border border-slate-950 rounded-lg">
+                                &quot;{hist.reason}&quot;
+                              </p>
+                            )}
+                            
+                            <div className="text-[8.5px] text-slate-500 font-mono flex items-center justify-between">
+                              <span className="flex items-center space-x-1">
+                                <span>Confidence score:</span>
+                                <span className="font-bold text-indigo-400/85">{hist.confidence || 100}%</span>
+                              </span>
+                              <span>Autodetected &bull; Verified</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
