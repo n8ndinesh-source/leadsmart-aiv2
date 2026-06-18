@@ -16,6 +16,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./server/db";
 import apiRouter from "./server/routes/api";
 import { startFollowUpScheduler } from "./server/services/followUpScheduler";
+import { processScheduledQuotationDeliveries } from "./server/services/quotationEngine.js";
 
 const PORT = 3000;
 
@@ -138,9 +139,15 @@ async function startServer() {
   const app = express();
 
   // Parse incoming JSON payloads
-  app.use(express.json());
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ limit: "50mb", extended: true }));
   
   startFollowUpScheduler();
+
+  // Run automated quotation delivery sweep in background
+  setInterval(async () => {
+    await processScheduledQuotationDeliveries();
+  }, 20 * 1000);
 
   // Attempt to sync the DB schema
   const isServerless = !!(

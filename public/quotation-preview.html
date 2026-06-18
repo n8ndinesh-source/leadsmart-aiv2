@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium WhatsApp Automation - Quotation Hub & Live Preview</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts - Inter & Space Grotesk -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,400&family=Fira+Code:wght@40500&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+            playfair: ['Playfair Display', 'serif'],
+            mono: ['Fira Code', 'monospace'],
+          },
+          colors: {
+            brand: {
+              gold: '#e2a326',
+              teal: '#0a3a40',
+              purple: '#6b3fc5',
+              lavenderBg: '#f0eefc',
+              lavenderText: '#6c5ce7'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Print styling */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    /* Watermark styling */
+    .watermark-bg {
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 55% auto;
+    }
+  </style>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-[#0b1120] text-slate-100 min-h-screen font-sans antialiased overflow-x-hidden">
+
+  <!-- Nav bar -->
+  <header class="border-b border-slate-800 bg-[#070c19]/90 backdrop-blur sticky top-0 z-50 no-print">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-indigo-600/10 rounded-lg border border-indigo-500/20">
+          <i data-lucide="file-text" class="w-6 h-6 text-indigo-400"></i>
+        </div>
+        <div>
+          <span class="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest block">Phase 2 Module</span>
+          <h1 class="text-base font-bold font-display text-white tracking-tight">Interactive Quotation Generator</h1>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button onclick="window.print()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold font-mono tracking-wider flex items-center space-x-2 transition-all cursor-pointer">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>PRINT / SAVE PDF</span>
+        </button>
+        <a href="/" class="px-3.5 py-1.5 bg-indigo-650 hover:bg-indigo-600 bg-indigo-600 text-white rounded-lg text-xs font-bold tracking-wider flex items-center space-x-2 transition-all cursor-pointer">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          <span>BACK TO CRM</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-8xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+    
+    <!-- LEFT SIDE: CREATOR PANEL & UPLOAD ASSETS -->
+    <section class="space-y-6 no-print">
+      
+      <!-- BRANDING & ASSETS MANAGER CARD -->
+      <div class="bg-[#121b2e] border border-slate-800/80 rounded-2xl p-5 shadow-xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <i data-lucide="image" class="w-4 h-4 text-brand-gold"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white font-display">Document Assets & Branding Uploads</h3>
+              <p class="text-[10px] text-slate-400 font-light mt-0.5">Customize the header, footer, corporate logo, and background watermark.</p>
+            </div>
+          </div>
+          <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">BRANDS GRAPHICS</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Corporate Logo & Watermark Logo -->
+          <div class="space-y-3 p-3.5 bg-[#090f1d] border border-slate-900 rounded-xl">
+            <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest font-mono">1. Key Graphics</span>
+            
+            <!-- Logo input -->
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-slate-300 mb-1">Corporate Header Logo</label>
+              <div class="flex items-center space-x-2">
+                <label class="flex-1 flex flex-col items-center justify-center py-2 px-3 bg-[#1e293b]/50 border border-slate-700 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-[#1e293b] transition-all">
+                  <div class="flex items-center space-x-1.5 text-xs text-slate-300">
+                    <i data-lucide="upload" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span id="logo-status">Upload Image</span>
+                  </div>
+                  <input type="file" id="logo-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event, 'logo')">
+                </label>
+                <button onclick="resetBranding('logo')" class="p-1.5 bg-slate-800/80 hover:bg-red-900/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors border border-slate-700/50" title="Reset to Default Image">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Watermark input -->
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-slate-300 mb-1">Central Watermark Shield</label>
+              <div class="flex items-center space-x-2">
+                <label class="flex-1 flex flex-col items-center justify-center py-2 px-3 bg-[#1e293b]/50 border border-slate-700 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-[#1e293b] transition-all">
+                  <div class="flex items-center space-x-1.5 text-xs text-slate-300">
+                    <i data-lucide="shield" class="w-3.5 h-3.5 text-yellow-400"></i>
+                    <span id="watermark-status">Upload Image</span>
+                  </div>
+                  <input type="file" id="watermark-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event, 'watermark')">
+                </label>
+                <button onclick="resetBranding('watermark')" class="p-1.5 bg-slate-800/80 hover:bg-red-900/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors border border-slate-700/50" title="Reset to Default Image">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <div class="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-light">
+                <span>Opacity setting:</span>
+                <div class="flex items-center space-x-1.5">
+                  <input type="range" id="watermark-opacity-slider" min="5" max="50" value="15" class="w-20 accent-indigo-500 h-1 rounded" oninput="updateWatermarkOpacity(this.value)">
+                  <span id="opacity-val" class="font-bold font-mono">15%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Header & Footer Banners -->
+          <div class="space-y-3 p-3.5 bg-[#090f1d] border border-slate-900 rounded-xl">
+            <span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest font-mono">2. Full Banners</span>
+            
+            <!-- Header Banner -->
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-slate-300 mb-1">Header Premium Banner (Angled Polygons)</label>
+              <div class="flex items-center space-x-2">
+                <label class="flex-1 flex flex-col items-center justify-center py-2 px-3 bg-[#1e293b]/50 border border-slate-700 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-[#1e293b] transition-all">
+                  <div class="flex items-center space-x-1.5 text-xs text-slate-300">
+                    <i data-lucide="layout-template" class="w-3.5 h-3.5 text-teal-400"></i>
+                    <span id="headerBanner-status">Upload Image</span>
+                  </div>
+                  <input type="file" id="headerBanner-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event, 'headerBanner')">
+                </label>
+                <button onclick="resetBranding('headerBanner')" class="p-1.5 bg-slate-800/80 hover:bg-red-900/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors border border-slate-700/50" title="Reset to Default Image">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Footer Banner -->
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-slate-300 mb-1">Footer Corporate Address Banner</label>
+              <div class="flex items-center space-x-2">
+                <label class="flex-1 flex flex-col items-center justify-center py-2 px-3 bg-[#1e293b]/50 border border-slate-700 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 hover:bg-[#1e293b] transition-all">
+                  <div class="flex items-center space-x-1.5 text-xs text-slate-300">
+                    <i data-lucide="map" class="w-3.5 h-3.5 text-brand-gold"></i>
+                    <span id="footerBanner-status">Upload Image</span>
+                  </div>
+                  <input type="file" id="footerBanner-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event, 'footerBanner')">
+                </label>
+                <button onclick="resetBranding('footerBanner')" class="p-1.5 bg-slate-800/80 hover:bg-red-900/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors border border-slate-700/50" title="Reset to Default Image">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUOTATION WORKSPACE BUILDER (Matches Image 2 exactly) -->
+      <div id="creator-workspace" class="bg-[#121b2e] border border-slate-800/80 rounded-2xl p-5 shadow-xl space-y-6">
+        
+        <!-- Header Controls -->
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-4">
+          <div class="flex items-center space-x-2">
+            <div class="p-1.5 rounded-lg bg-indigo-505/10 bg-indigo-500/10 border border-indigo-550/20">
+              <i data-lucide="sliders" class="w-4 h-4 text-indigo-400"></i>
+            </div>
+            <h3 class="text-sm font-bold text-white font-display uppercase tracking-wider">Quotation Form Engine</h3>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="editGSTRates()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 hover:text-white rounded font-mono font-bold flex items-center transition-all border border-slate-700">
+              <i data-lucide="percent" class="w-3 h-3 mr-1 text-slate-400"></i>
+              <span>% Edit GST</span>
+            </button>
+            <button onclick="editFormulaColumns()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 hover:text-white rounded font-mono font-bold flex items-center transition-all border border-slate-700" title="Edit columns and formulas">
+              <i data-lucide="layout" class="w-3 h-3 mr-1 text-indigo-400"></i>
+              <span>Edit Columns/Formulas</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. ADDRESS CARDS (FROM / FOR) SELECTORS -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Quotation From -->
+          <div class="bg-[#090f1d] border border-slate-800 rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <label class="text-xs font-bold text-slate-300">Quotation From <span class="text-[10px] text-slate-500 font-light">(Your Details)</span></label>
+              <button onclick="editFormAddress('from')" class="text-[10px] text-indigo-400 hover:text-white flex items-center font-mono">
+                <i data-lucide="edit-3" class="w-2.5 h-2.5 mr-1"></i> Edit
+              </button>
+            </div>
+            
+            <div class="space-y-2">
+              <select id="from-vendor-select" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500" onchange="changeVendor('from', this.value)">
+                <option value="ECOPEK">E - ECOPEK (Default)</option>
+                <option value="THYNK">T - THYNK CREATIVES</option>
+                <option value="CUSTOM">Custom Address Block</option>
+              </select>
+
+              <div class="text-[11px] text-slate-400 bg-[#0e1726]/40 p-2.5 rounded-lg border border-slate-900 leading-relaxed space-y-1 font-mono">
+                <div><span class="text-xs font-bold text-slate-200" id="v-from-name">ECOPEK</span></div>
+                <div id="v-from-address">Maharashtra, India - 500100</div>
+                <div class="grid grid-cols-2 gap-1 text-[10px] pt-1">
+                  <div>GSTIN: <span id="v-from-gstin">27AAHCM9628G1Z3</span></div>
+                  <div>PAN: <span id="v-from-pan">AAHCM9628G</span></div>
+                  <div class="col-span-2">Phone: <span id="v-from-phone">+91 98565 47854</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quotation For -->
+          <div class="bg-[#090f1d] border border-slate-800 rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <label class="text-xs font-bold text-slate-300">Quotation For <span class="text-[10px] text-slate-500 font-light">(Client's Details)</span></label>
+              <button onclick="editFormAddress('for')" class="text-[10px] text-indigo-400 hover:text-white flex items-center font-mono">
+                <i data-lucide="edit-3" class="w-2.5 h-2.5 mr-1"></i> Edit
+              </button>
+            </div>
+            
+            <div class="space-y-2">
+              <select id="for-client-select" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500" onchange="changeVendor('for', this.value)">
+                <option value="VELOCITY">THE VELOCITY EXPORTS (Default)</option>
+                <option value="CRAFT">CRAFT LOGISTICS CORP</option>
+                <option value="CUSTOM">Custom Address Block</option>
+              </select>
+
+              <div class="text-[11px] text-slate-400 bg-[#0e1726]/40 p-2.5 rounded-lg border border-slate-900 leading-relaxed space-y-1 font-mono">
+                <div><span class="text-xs font-bold text-slate-200" id="v-for-name">THE VELOCITY EXPORTS</span></div>
+                <div id="v-for-address">Maharashtra, India</div>
+                <div class="grid grid-cols-2 gap-1 text-[10px] pt-1">
+                  <div>GSTIN: <span id="v-for-gstin">27AAHCM9628G1Z3</span></div>
+                  <div>PAN: <span id="v-for-pan">AAHCM9628G</span></div>
+                  <div class="col-span-2">Phone: <span id="v-for-phone">+91 79852 48632</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta fields & Currency -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#090f1d] p-4 rounded-xl border border-slate-800/60">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Currency Configuration</label>
+            <select id="currency-select" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded-lg p-2 text-xs font-bold focus:outline-none" onchange="changeCurrency(this.value)">
+              <option value="INR">Indian Rupee (INR, ₹)</option>
+              <option value="USD">US Dollar (USD, $)</option>
+              <option value="EUR">Euro (EUR, €)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">State of Supply</label>
+            <input type="text" id="state-supply-input" value="Maharashtra (27)" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded-lg p-2 text-xs focus:outline-none" oninput="updateMeta('state', this.value)">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Country of Supply</label>
+            <input type="text" id="country-supply-input" value="India" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded-lg p-2 text-xs focus:outline-none" oninput="updateMeta('country', this.value)">
+          </div>
+          <div class="col-span-1 md:col-span-3 pt-2">
+            <label class="flex items-center space-x-2.5 cursor-pointer">
+              <input type="checkbox" id="add-shipping-checkbox" class="w-4 h-4 rounded text-indigo-600 bg-[#182235] border-slate-800 focus:ring-indigo-500 focus:ring-opacity-25" onchange="toggleShippingDetails(this.checked)">
+              <span class="text-xs text-slate-305 text-slate-350">Add Custom Shipping Details & Destination Parameters</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. LINE ITEMS WORKSPACE -->
+        <div class="space-y-3.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Line Items (Interactive Calculation Block)</span>
+            <span id="items-counter-badge" class="text-[9px] font-mono tracking-widest bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-bold">2 ITEMS ACTIVE</span>
+          </div>
+
+          <!-- Items list container -->
+          <div id="items-editor-container" class="space-y-4">
+            <!-- Rendered list items -->
+          </div>
+
+          <!-- Add line item flat button -->
+          <button type="button" onclick="addNewLineItem()" class="w-full py-2.5 border border-dashed border-slate-800 hover:border-indigo-500 hover:bg-slate-900/40 text-slate-420 text-slate-400 hover:text-white rounded-xl text-xs font-bold font-mono tracking-wider flex items-center justify-center space-x-2 transition-all cursor-pointer">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>ADD NEW LINE</span>
+          </button>
+        </div>
+
+        <!-- Totals, Words, Terms & Attachments Toggles -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Live Math Parameters & Summaries -->
+          <div class="p-4 bg-[#090f1d] border border-slate-800 rounded-xl space-y-3">
+            <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest font-mono block mb-1">3. Totals PDF View options</span>
+            
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span class="flex items-center"><i data-lucide="eye" class="w-3.5 h-3.5 mr-1 text-indigo-400"></i> Show Total in PDF</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="show-total-pdf-checkbox" class="sr-only peer" checked onchange="togglePDFTotals(this.checked)">
+                  <div class="w-8 h-4.5 bg-slate-800 rounded-full peer peer-focus:ring-1 peer-focus:ring-indigo-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-30s after:bg-slate-200 after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-650 peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span class="flex items-center"><i data-lucide="percent" class="w-3.5 h-3.5 mr-1 text-emerald-400"></i> Add Corporate Discounts</span>
+                <button onclick="toggleDiscountsPanel()" class="text-[10px] px-2 py-0.5 bg-slate-800/80 rounded border border-slate-700/60 font-mono font-bold hover:bg-slate-700">Configure</button>
+              </div>
+              <div id="discounts-configure-panel" class="hidden p-2.5 bg-[#121c2f]/60 rounded-lg border border-indigo-500/10 space-y-2">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span>Discount percentage (%)</span>
+                  <input type="number" id="discount-pct-input" value="0" min="0" max="100" class="w-16 bg-[#1e293b] text-slate-200 text-xs font-mono font-bold p-1 rounded focus:outline-none" oninput="calculateTotals()">
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span class="flex items-center"><i data-lucide="plus" class="w-3.5 h-3.5 mr-1 text-teal-400"></i> Add Extra Charges/Delivery</span>
+                <input type="number" id="delivery-charge-input" value="0" min="0" class="w-20 bg-[#1e293b] text-slate-200 text-xs font-mono font-bold p-1 rounded focus:outline-none text-right" oninput="calculateTotals()" placeholder="₹0">
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-slate-300 pt-1.5 border-t border-slate-800">
+                <span class="flex items-center"><i data-lucide="file-text" class="w-3.5 h-3.5 mr-1 text-amber-500"></i> Show Total in Words</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="show-words-pdf-checkbox" class="sr-only peer" checked onchange="togglePDFWords(this.checked)">
+                  <div class="w-8 h-4.5 bg-slate-800 rounded-full peer peer-focus:ring-1 peer-focus:ring-indigo-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-200 after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+              <div id="words-text-box" class="p-2 bg-[#0e1726]/40 rounded-lg text-[10px] text-slate-400 italic leading-relaxed font-mono">
+                Total in words: <span class="font-semibold text-slate-300" id="live-words-span">Two Thousand Rupees Only</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conditions, Attachments & Signatures -->
+          <div class="p-4 bg-[#090f1d] border border-slate-800 rounded-xl space-y-3.5">
+            <span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest font-mono block">4. Appendix & Authorizations</span>
+            
+            <div class="space-y-2">
+              <button onclick="editTermsAndConditions()" class="w-full py-1.5 px-3 bg-slate-850 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold flex items-center justify-between transition-all border border-slate-705 border-slate-700">
+                <span class="flex items-center"><i data-lucide="shield-alert" class="w-3.5 h-3.5 mr-1.5 text-rose-400"></i> Edit Terms and Conditions</span>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500"></i>
+              </button>
+
+              <button onclick="editTermsAndConditions()" class="w-full py-1.5 px-3 bg-slate-80 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold flex items-center justify-between transition-all border border-slate-700">
+                <span class="flex items-center"><i data-lucide="file-edit" class="w-3.5 h-3.5 mr-1.5 text-indigo-400"></i> Add Additional Corporate Notes</span>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500"></i>
+              </button>
+
+              <button onclick="editFormAddress('signature')" class="w-full py-1.5 px-3 bg-slate-80 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold flex items-center justify-between transition-all border border-slate-700">
+                <span class="flex items-center"><i data-lucide="pen-tool" class="w-3.5 h-3.5 mr-1.5 text-emerald-400"></i> Add Digital Signature Field</span>
+                <i data-lucide="plus" class="w-3.5 h-3.5 text-slate-500"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Big Actions Bar -->
+        <div class="flex flex-col space-y-3 pt-2">
+          <!-- Button Grid -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <button onclick="alert('Successfully added terms!')" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-305 text-slate-300 hover:text-white text-[10px] font-extrabold uppercase rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5">
+              <i data-lucide="file-warning" class="w-3 h-3 text-yellow-400"></i>
+              <span>Add Terms</span>
+            </button>
+            <button onclick="alert('Additional notes box added!')" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-305 text-slate-300 hover:text-white text-[10px] font-extrabold uppercase rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5">
+              <i data-lucide="book-open" class="w-3 h-3 text-blue-400"></i>
+              <span>Add Notes</span>
+            </button>
+            <button onclick="alert('Attachments enabled!')" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-305 text-slate-300 hover:text-white text-[10px] font-extrabold uppercase rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5">
+              <i data-lucide="paperclip" class="w-3 h-3 text-purple-400"></i>
+              <span>Add Attachments</span>
+            </button>
+            <button onclick="alert('Contact details linked!')" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-305 text-slate-300 hover:text-white text-[10px] font-extrabold uppercase rounded-lg border border-slate-700 flex items-center justify-center space-x-1.5">
+              <i data-lucide="phone-call" class="w-3 h-3 text-teal-400"></i>
+              <span>Contact Details</span>
+            </button>
+          </div>
+
+          <button onclick="submitSaveContinue()" class="w-full py-3 bg-rose-650 hover:bg-rose-600 bg-rose-600 text-white text-xs uppercase tracking-widest font-extrabold rounded-xl transition-all shadow-lg hover:shadow-rose-950/20 shadow-rose-900/10 hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center space-x-2 cursor-pointer">
+            <i data-lucide="check-circle" class="w-4.5 h-4.5"></i>
+            <span>Save & Continue</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT SIDE: REAL-TIME PREMIUM FINAL PREVIEW (Matches Image 1 exactly) -->
+    <section class="space-y-4 lg:sticky lg:top-20">
+      <div class="flex items-center justify-between no-print mb-2 bg-[#121b2e] border border-slate-800/80 px-4 py-2.5 rounded-xl">
+        <div class="flex items-center space-x-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-xs font-mono font-bold text-slate-300">LIVE PREVIEW SHIELD (WASM PDF RENDER)</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-[10px] font-light text-slate-400 mr-2">Watermark preview:</span>
+          <button onclick="toggleWatermarkVisibility()" class="p-1.5 bg-slate-800 hover:bg-indigo-600 rounded text-slate-200 transition-colors">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- THE PDF CONTAINER (Target of styles and print) -->
+      <div id="print-area" class="bg-white text-slate-800 font-sans shadow-2xl rounded-2xl relative overflow-hidden flex flex-col justify-between" style="min-height: 842px; width: 100%; max-width: 595px; margin: 0 auto;">
+        
+        <!-- Header Part -->
+        <div class="relative w-full z-10 select-none">
+          <!-- Premium Polygon Top Banner -->
+          <div id="final-header-banner" class="w-full overflow-hidden" style="height: 110px; background-image: url('https://imgur.com/G3Pcl6E.png'); background-size: cover; background-position: center;">
+            <!-- SVG Premium Angled Polygonal Header Mock -->
+            <svg viewBox="0 0 595 110" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full" id="premium-header-svg">
+              <!-- Dark Green Main Polygonal Block -->
+              <path d="M0 0 H595 V65 L430 95 L220 70 L0 80 Z" fill="#0c353a"/>
+              <!-- Golden Angle Band -->
+              <path d="M0 80 L220 70 L430 95 L595 65 V80 L430 110 L220 85 L0 95 Z" fill="#e2a326"/>
+              <!-- Top decorative light accents -->
+              <path d="M120 0 L180 30 L220 0 Z" fill="#ffffff" fill-opacity="0.15" />
+              <path d="M350 0 L390 20 L440 0 Z" fill="#ffffff" fill-opacity="0.1" />
+            </svg>
+          </div>
+
+          <!-- Company Meta details Row in Header -->
+          <div class="px-7 py-3 flex items-center justify-between -mt-3.5">
+            <div class="flex items-center space-x-3.5">
+              <!-- Elegant Circular Logo container -->
+              <div id="final-brand-logo" class="w-14 h-14 rounded-full bg-white flex items-center justify-center p-1 select-none" style="transform: translateY(-8px);">
+                <!-- Vector flame-like corporate logo (ECOPEK/THYNK style) -->
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-11 h-11" id="vector-logo-svg">
+                  <!-- Abstract overlapping leaves representing growth -->
+                  <path d="M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15" fill="#e2a326"/>
+                  <path d="M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15" fill="#0c353a"/>
+                  <path d="M43 35 C28 50, 32 72, 48 83 C40 70, 38 52, 43 35" fill="#f39c12"/>
+                </svg>
+              </div>
+              <div style="transform: translateY(-4px);">
+                <h2 id="final-corporate-name" class="text-lg font-black font-display tracking-tight text-slate-900 leading-none" style="letter-spacing: -0.025em;">ECOPEK UNLIMITED</h2>
+                <span id="final-corporate-slogan" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mt-0.5">Automated Bio Solutions</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <!-- Quotation indicator -->
+              <span class="text-xs font-bold text-slate-400 tracking-wider">OFFICIAL PROPOSAL</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Invoice Core with Watermark support -->
+        <div id="pdf-watermark-wrapper" class="px-7 flex-1 flex flex-col justify-between pt-1 pb-4 relative watermark-bg" style="background-image: url('data:image/svg+xml;utf8,<svg viewBox=%220%200%20100%20100%22%20xmlns=%22http://www.w3.org/2000/svg%22><path%20d=%22M50%2015%20C30%2035,%2030%2065,%2050%2085%20C55%2075,%2055%2055,%2050%2045%20C45%2035,%2045%2025,%2050%2015%22%20fill=%22%23e2a326%22%20fill-opacity=%220.15%22/><path%20d=%22M50%2015%20C65%2030,%2068%2055,%2056%2068%20C45%2050,%2048%2035,%2050%2015%22%20fill=%22%230c353a%22%20fill-opacity=%220.15%22/></svg>');">
+          
+          <!-- Metas: No, Dates -->
+          <div class="flex items-center justify-between text-xs border-b border-slate-100 pb-2.5">
+            <div>
+              <span class="font-bold text-slate-800 tracking-tight font-sans">QUOTATION NO:</span>
+              <span id="p-quote-no" class="font-bold text-rose-600 ml-1 font-mono">0662</span>
+            </div>
+            <div>
+              <span class="font-bold text-slate-800 tracking-tight">Date of issue:</span>
+              <span id="p-issue-date" class="font-bold text-slate-900 ml-1">17/06/2026</span>
+            </div>
+          </div>
+
+          <!-- Vendor / Client side-by-side cards (lavender styling) -->
+          <div class="grid grid-cols-2 gap-4 my-3.5">
+            <!-- From Card -->
+            <div class="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100/50">
+              <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest block mb-1">Quotation From</span>
+              <h4 id="p-from-name" class="text-xs font-bold text-slate-900">ECOPEK</h4>
+              <p id="p-from-details" class="text-[9px] text-slate-600 mt-1 leading-normal font-mono">
+                Maharashtra, India - 500100<br>
+                GSTIN: 27AAHCM9628G1Z3<br>
+                PAN: AAHCM9628G<br>
+                Phone: +91 98565 47854
+              </p>
+            </div>
+
+            <!-- For Card -->
+            <div class="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100/50">
+              <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest block mb-1">Quotation For</span>
+              <h4 id="p-for-name" class="text-xs font-bold text-slate-900">THE VELOCITY EXPORTS</h4>
+              <p id="p-for-details" class="text-[9px] text-slate-600 mt-1 leading-normal font-mono">
+                Maharashtra, India<br>
+                GSTIN: 27AAHCM9628G1Z3<br>
+                PAN: AAHCM9628G<br>
+                Phone: +91 79852 48632
+              </p>
+            </div>
+          </div>
+
+          <!-- Country / Place of Supply parameters lines -->
+          <div class="flex items-center justify-between text-[9.5px] font-bold text-slate-600 px-1 mb-2">
+            <div>
+              <span>Country of Supply:</span>
+              <span id="p-country-supply" class="text-slate-800 ml-1">India</span>
+            </div>
+            <div>
+              <span>Place of Supply:</span>
+              <span id="p-state-supply" class="text-slate-800 ml-1">Maharashtra (27)</span>
+            </div>
+          </div>
+
+          <!-- The Core Items Table -->
+          <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-indigo-650 text-white font-semibold text-[9.5px]" style="background-color: #6b3fc5;">
+                  <th class="py-2.5 px-3">Item</th>
+                  <th class="py-2.5 px-2 text-center">GST Rate</th>
+                  <th class="py-2.5 px-2 text-right">Quantity</th>
+                  <th class="py-2.5 px-2 text-right">Rate</th>
+                  <th class="py-2.5 px-2 text-right">Amount</th>
+                  <th class="py-2.5 px-2 text-right">CGST</th>
+                  <th class="py-2.5 px-2 text-right">SGST</th>
+                  <th class="py-2.5 px-3 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody id="p-table-body" class="text-[9.5px] divide-y divide-slate-100/50">
+                <!-- Statically matching rows that update automatically with client side state -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Summary block -->
+          <div class="flex justify-between items-start mt-4">
+            <!-- Left block: Terms block -->
+            <div class="w-[52%] space-y-2">
+              <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest block">Terms and Conditions</span>
+              <ol id="p-terms" class="text-[8.5px] text-slate-600 list-decimal list-inside leading-loose font-mono">
+                <li>Applicable taxes will be extra.</li>
+                <li>Work will resume after advance payment.</li>
+                <li>Goods once sold will not be returned.</li>
+              </ol>
+            </div>
+
+            <!-- Right block: Totals calculations values -->
+            <div class="w-[45%] bg-slate-50/40 p-3 rounded-lg border border-slate-100/60 font-mono text-[9.5px] space-y-1.5 flex flex-col justify-end">
+              <div class="flex justify-between text-slate-600">
+                <span>Amount:</span>
+                <span id="p-subtotal">₹2,000.00</span>
+              </div>
+              <div class="flex justify-between text-slate-600">
+                <span>CGST:</span>
+                <span id="p-cgst">₹0.00</span>
+              </div>
+              <div class="flex justify-between text-slate-600">
+                <span>SGST:</span>
+                <span id="p-sgst">₹0.00</span>
+              </div>
+              <div class="flex justify-between text-slate-600 pb-1 border-b border-slate-200">
+                <span>Charges:</span>
+                <span id="p-charges">₹0.00</span>
+              </div>
+              <div class="flex justify-between text-slate-900 font-bold text-xs pt-1 border-b-2 border-double border-slate-900">
+                <span>Grand Total:</span>
+                <span id="p-grandtotal" class="font-sans">₹2,000.00</span>
+              </div>
+              <div id="p-words-container" class="text-[8px] text-slate-500 leading-tight italic text-right mt-1.5 pt-1 border-t border-slate-100">
+                Total (in words):<br>
+                <span class="font-bold text-slate-700" id="p-words-span">Two Thousand Rupees Only</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer Bottom Angle Ribbon Part -->
+        <div class="relative w-full z-10 bottom-0 select-none mt-auto">
+          <!-- Foot Contact Detail Text Info -->
+          <div class="px-7 py-3 border-t border-slate-100 bg-white flex items-center justify-between text-[8px] text-slate-500 font-bold font-mono">
+            <span class="flex items-center"><i data-lucide="globe" class="w-3 h-3 mr-1 text-slate-400"></i> www.ECOPEK.com</span>
+            <span class="flex items-center"><i data-lucide="phone" class="w-3 h-3 mr-1 text-slate-400"></i> +91 98565 47854</span>
+            <span class="flex items-center"><i data-lucide="mail" class="w-3 h-3 mr-1 text-slate-400"></i> sales@ECOPEK.com</span>
+          </div>
+
+          <!-- Colored corporate thick bottom shapes -->
+          <div id="final-footer-banner" class="w-full" style="height: 48px; background-image: url('https://imgur.com/vH3mFzU.png'); background-size: cover; background-position: center;">
+            <svg viewBox="0 0 595 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full" id="premium-footer-svg">
+              <!-- Orange Angular Ribbon -->
+              <path d="M0 15 L180 8 L390 22 L595 5 V20 H0 Z" fill="#e2a326"/>
+              <!-- Green Bottom Cover -->
+              <path d="M0 20 L180 13 L390 27 L595 10 V48 H0 Z" fill="#0c353a"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Vanilla State Engine & Interactivity Scripts -->
+  <script>
+    // In-memory State representation
+    const state = {
+      meta: {
+        quoteNo: "0662",
+        issueDate: "17/06/2026",
+        currency: "INR",
+        state: "Maharashtra (27)",
+        country: "India",
+        showPDFTotals: true,
+        showWords: true,
+        watermarkOpacity: 15,
+        watermarkVisible: true
+      },
+      branding: {
+        logo: '', // custom or defaults
+        watermark: '',
+        headerBanner: '',
+        footerBanner: ''
+      },
+      from: {
+        name: "ECOPEK",
+        address: "Maharashtra, India - 500100",
+        gstin: "27AAHCM9628G1Z3",
+        pan: "AAHCM9628G",
+        phone: "+91 98565 47854"
+      },
+      for: {
+        name: "THE VELOCITY EXPORTS",
+        address: "Maharashtra, India",
+        gstin: "27AAHCM9628G1Z3",
+        pan: "AAHCM9628G",
+        phone: "+91 79852 48632"
+      },
+      items: [
+        { id: '1', name: "Saffron Organic Fiber", hsn: "1211", gst: 18, qty: 10, rate: 100 },
+        { id: '2', name: "Polyester Filter Grid", hsn: "5911", gst: 12, qty: 10, rate: 100 }
+      ],
+      terms: [
+        "Applicable taxes will be extra.",
+        "Work will resume after advance payment.",
+        "Goods once sold will not be returned."
+      ]
+    };
+
+    const currencySymbols = {
+      INR: "₹",
+      USD: "$",
+      EUR: "€"
+    };
+
+    // Auto-initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      // Initialize icons
+      lucide.createIcons();
+      // Auto-compute issue date to current date formatted
+      const today = new Date();
+      const dd = String(today.getDate()).padStart(2, '0');
+      const mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+      const yyyy = today.getFullYear();
+      state.meta.issueDate = `${dd}/${mm}/${yyyy}`;
+      document.getElementById('p-issue-date').textContent = state.meta.issueDate;
+
+      // Render initial UI blocks
+      renderLineItemsEditor();
+      calculateTotals();
+    });
+
+    // Handle dynamically uploading customizable branding assets
+    function handleImageUpload(event, assetKey) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        state.branding[assetKey] = dataUrl;
+        
+        // Update Creator Status
+        const statusEl = document.getElementById(`${assetKey}-status`);
+        if (statusEl) {
+          statusEl.innerHTML = `<span class="text-emerald-400 font-bold flex items-center"><i data-lucide="check" class="w-3.5 h-3.5 mr-1"></i> Loaded</span>`;
+          lucide.createIcons();
+        }
+
+        // Apply dynamically in Preview Panel
+        applyBrandingToPreview(assetKey, dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Reset Branding Back to Standard Vector Template Mockups
+    function resetBranding(assetKey) {
+      state.branding[assetKey] = '';
+      const statusEl = document.getElementById(`${assetKey}-status`);
+      if (statusEl) {
+        statusEl.textContent = "Upload Image";
+      }
+      
+      const fileInput = document.getElementById(`${assetKey}-upload`);
+      if (fileInput) fileInput.value = '';
+
+      applyBrandingToPreview(assetKey, null);
+    }
+
+    function applyBrandingToPreview(assetKey, url) {
+      if (assetKey === 'logo') {
+        const logoDiv = document.getElementById('final-brand-logo');
+        if (url) {
+          logoDiv.innerHTML = `<img src="${url}" class="w-12 h-12 rounded-full object-contain" referrerPolicy="no-referrer" />`;
+        } else {
+          // restore standard vector logo
+          logoDiv.innerHTML = `
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-11 h-11" id="vector-logo-svg">
+              <path d="M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15" fill="#e2a326"/>
+              <path d="M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15" fill="#0c353a"/>
+              <path d="M43 35 C28 50, 32 72, 48 83 C40 70, 38 52, 43 35" fill="#f39c12"/>
+            </svg>
+          `;
+        }
+      } else if (assetKey === 'watermark') {
+        const wrapper = document.getElementById('pdf-watermark-wrapper');
+        const overlayNode = document.getElementById('custom-watermark-layout') || document.createElement('div');
+        overlayNode.id = 'custom-watermark-layout';
+        overlayNode.className = "absolute inset-0 pointer-events-none z-0 bg-contain bg-center bg-no-repeat transition-all";
+        
+        if (url) {
+          overlayNode.style.backgroundImage = `url('${url}')`;
+          overlayNode.style.opacity = (state.meta.watermarkOpacity / 100).toString();
+          wrapper.style.backgroundImage = 'none'; // Clear default
+          wrapper.appendChild(overlayNode);
+        } else {
+          if (document.getElementById('custom-watermark-layout')) {
+            document.getElementById('custom-watermark-layout').remove();
+          }
+          wrapper.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg viewBox=%220%200%20100%20100%22%20xmlns=%22http://www.w3.org/2000/svg%22><path%20d=%22M50%2015%20C30%2035,%2030%2065,%2050%2085%20C55%2075,%2055%2055,%2050%2045%20C45%2035,%2045%2025,%2050%2015%22%20fill=%22%23e2a326%22%20fill-opacity=%220.15%22/><path%20d=%22M50%2015%20C65%2030,%2068%2055,%2056%2068%20C45%2050,%2048%2035,%2050%2015%22%20fill=%22%230c353a%22%20fill-opacity=%220.15%22/></svg>')`;
+        }
+      } else if (assetKey === 'headerBanner') {
+        const bannerDiv = document.getElementById('final-header-banner');
+        if (url) {
+          bannerDiv.style.backgroundImage = `url('${url}')`;
+          document.getElementById('premium-header-svg').style.display = 'none';
+        } else {
+          bannerDiv.style.backgroundImage = '';
+          document.getElementById('premium-header-svg').style.display = 'block';
+        }
+      } else if (assetKey === 'footerBanner') {
+        const footBanner = document.getElementById('final-footer-banner');
+        if (url) {
+          footBanner.style.backgroundImage = `url('${url}')`;
+          document.getElementById('premium-footer-svg').style.display = 'none';
+        } else {
+          footBanner.style.backgroundImage = '';
+          document.getElementById('premium-footer-svg').style.display = 'block';
+        }
+      }
+    }
+
+    function updateWatermarkOpacity(val) {
+      state.meta.watermarkOpacity = val;
+      document.getElementById('opacity-val').textContent = val + '%';
+      const overlayNode = document.getElementById('custom-watermark-layout');
+      if (overlayNode) {
+        overlayNode.style.opacity = (val / 100).toString();
+      }
+    }
+
+    function toggleWatermarkVisibility() {
+      state.meta.watermarkVisible = !state.meta.watermarkVisible;
+      const overlayNode = document.getElementById('custom-watermark-layout');
+      const wrapper = document.getElementById('pdf-watermark-wrapper');
+      
+      if (state.meta.watermarkVisible) {
+        if (overlayNode) overlayNode.style.display = 'block';
+        else wrapper.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg viewBox=%220%200%20100%20100%22%20xmlns=%22http://www.w3.org/2000/svg%22><path%20d=%22M50%2015%20C30%2035,%2030%2065,%2050%2085%20C55%2075,%2055%2055,%2050%2045%20C45%2035,%2045%2025,%2050%2015%22%20fill=%22%23e2a326%22%20fill-opacity=%220.15%22/><path%20d=%22M50%2015%20C65%2030,%2068%2055,%2056%2068%20C45%2050,%2048%2035,%2050%2015%22%20fill=%22%230c353a%22%20fill-opacity=%220.15%22/></svg>')`;
+      } else {
+        if (overlayNode) overlayNode.style.display = 'none';
+        wrapper.style.backgroundImage = 'none';
+      }
+    }
+
+    // Changing Vendor preset lists
+    const vendorPresets = {
+      ECOPEK: {
+        name: "ECOPEK",
+        address: "Maharashtra, India - 500100",
+        gstin: "27AAHCM9628G1Z3",
+        pan: "AAHCM9628G",
+        phone: "+91 98565 47854"
+      },
+      THYNK: {
+        name: "THYNK DESIGNS CREATIVE",
+        address: "Cyber City, Hyderabad, Telangana - 500081",
+        gstin: "36AAHCM1234S1Z9",
+        pan: "ABCPG4321A",
+        phone: "+91 80088 12345"
+      },
+      VELOCITY: {
+        name: "THE VELOCITY EXPORTS",
+        address: "Maharashtra, India",
+        gstin: "27AAHCM9628G1Z3",
+        pan: "AAHCM9628G",
+        phone: "+91 79852 48632"
+      },
+      CRAFT: {
+        name: "CRAFT LOGISTICS CORP",
+        address: "Port Road, Chennai, Tamil Nadu - 600001",
+        gstin: "33AAHCM5678B1Z7",
+        pan: "ACMPK3342D",
+        phone: "+91 90001 54321"
+      }
+    };
+
+    function changeVendor(type, key) {
+      if (key === 'CUSTOM') {
+        const name = prompt(`Enter ${type === 'from' ? 'Vendor' : 'Client'} Name:`, state[type].name);
+        const address = prompt(`Enter Physical Address:`, state[type].address);
+        const gstin = prompt(`Enter GSTIN:`, state[type].gstin);
+        const pan = prompt(`Enter PAN:`, state[type].pan);
+        const phone = prompt(`Enter Phone:`, state[type].phone);
+        if (name) {
+          state[type] = { name, address, gstin, pan, phone };
+        }
+      } else {
+        state[type] = { ...vendorPresets[key] };
+      }
+
+      // Update Form display
+      document.getElementById(`v-${type}-name`).textContent = state[type].name;
+      document.getElementById(`v-${type}-address`).textContent = state[type].address;
+      document.getElementById(`v-${type}-gstin`).textContent = state[type].gstin;
+      document.getElementById(`v-${type}-pan`).textContent = state[type].pan;
+      document.getElementById(`v-${type}-phone`).textContent = state[type].phone;
+
+      // Update Preview directly
+      document.getElementById(`p-${type}-name`).textContent = state[type].name;
+      document.getElementById(`p-${type}-details`).innerHTML = `
+        ${state[type].address}<br>
+        GSTIN: ${state[type].gstin}<br>
+        PAN: ${state[type].pan}<br>
+        Phone: ${state[type].phone}
+      `;
+
+      // Update Header Text if it's "from" corporate name
+      if (type === 'from') {
+        document.getElementById('final-corporate-name').textContent = state[type].name + ' UNLIMITED';
+      }
+    }
+
+    function editFormAddress(type) {
+      const name = prompt(`Edit ${type.toUpperCase()} Name:`, state[type].name);
+      if (!name) return;
+      const address = prompt(`Edit Address:`, state[type].address);
+      const gstin = prompt(`Edit GSTIN:`, state[type].gstin);
+      const pan = prompt(`Edit PAN:`, state[type].pan);
+      const phone = prompt(`Edit Phone:`, state[type].phone);
+
+      state[type] = { name, address, gstin, pan, phone };
+      
+      // Sync Form select dropdown to show custom
+      document.getElementById(`${type}-vendor-select` || `${type}-client-select`).value = 'CUSTOM';
+      
+      changeVendor(type, 'CUSTOM');
+    }
+
+    function changeCurrency(val) {
+      state.meta.currency = val;
+      calculateTotals();
+    }
+
+    function updateMeta(key, val) {
+      state.meta[key] = val;
+      if (key === 'state') {
+        document.getElementById('p-state-supply').textContent = val;
+      } else if (key === 'country') {
+        document.getElementById('p-country-supply').textContent = val;
+      }
+    }
+
+    function toggleShippingDetails(checked) {
+      if (checked) {
+        const dest = prompt("Enter Custom Shipping Destination & Delivery Address:");
+        if (dest) {
+          alert(`Shipping enabled to: ${dest}`);
+        }
+      }
+    }
+
+    // Toggle showing PDF values
+    function togglePDFTotals(checked) {
+      state.meta.showPDFTotals = checked;
+      calculateTotals();
+    }
+
+    function togglePDFWords(checked) {
+      state.meta.showWords = checked;
+      const wordsBox = document.getElementById('words-text-box');
+      const pWordsDiv = document.getElementById('p-words-container');
+      
+      if (checked) {
+        wordsBox.style.display = 'block';
+        if (pWordsDiv) pWordsDiv.style.opacity = '1';
+      } else {
+        wordsBox.style.display = 'none';
+        if (pWordsDiv) pWordsDiv.style.opacity = '0';
+      }
+    }
+
+    function toggleDiscountsPanel() {
+      const panel = document.getElementById('discounts-configure-panel');
+      panel.classList.toggle('hidden');
+    }
+
+    // EDIT DIRECT POPUPS
+    function editGSTRates() {
+      const val = prompt("Enter standard flat GST Rate to apply across all items in percentages (e.g. 18, 12, 5, 0):", "18");
+      if (val !== null) {
+        const pct = parseFloat(val) || 0;
+        state.items.forEach(itm => itm.gst = pct);
+        renderLineItemsEditor();
+        calculateTotals();
+      }
+    }
+
+    function editFormulaColumns() {
+      alert("Formulas locked to standard accounting: [Amount = Rate * Qty], [CGST = Amount * GST/2], [SGST = Amount * GST/2]");
+    }
+
+    // RENDERING & INTERACTIVE ITEMS LISTING
+    function renderLineItemsEditor() {
+      const container = document.getElementById('items-editor-container');
+      container.innerHTML = '';
+      
+      state.items.forEach((item, index) => {
+        const itemBox = document.createElement('div');
+        itemBox.className = "bg-[#090f1d] border border-slate-800 rounded-xl p-4 space-y-3 relative transition-all hover:border-slate-700";
+        itemBox.innerHTML = `
+          <!-- Toolbar row -->
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-bold text-slate-400 font-mono">Item Row #${index + 1}</span>
+            <div class="flex space-x-1">
+              <button onclick="moveItem(${index}, -1)" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Move Up"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>
+              <button onclick="moveItem(${index}, 1)" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Move Down"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
+              <button onclick="duplicateItem(${index})" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white" title="Duplicate"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+              <button onclick="deleteItem(${index})" class="p-1 hover:bg-red-950/40 rounded text-slate-400 hover:text-rose-450 hover:text-rose-400" title="Delete"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+          </div>
+
+          <!-- Column grid inputs -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div class="md:col-span-4">
+              <label class="block text-[8px] uppercase font-mono font-bold text-slate-500 mb-0.5">Item Name</label>
+              <input type="text" value="${item.name}" oninput="updateItemField(${index}, 'name', this.value)" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded p-1.5 text-xs focus:outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-[8px] uppercase font-mono font-bold text-slate-500 mb-0.5">HSN/SAC</label>
+              <input type="text" value="${item.hsn}" oninput="updateItemField(${index}, 'hsn', this.value)" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded p-1.5 text-xs font-mono focus:outline-none text-center">
+            </div>
+            <div class="md:col-span-1.5 md:col-span-1">
+              <label class="block text-[8px] uppercase font-mono font-bold text-slate-500 mb-0.5">GST %</label>
+              <select onchange="updateItemField(${index}, 'gst', parseFloat(this.value))" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded p-1.5 text-xs focus:outline-none">
+                <option value="0" ${item.gst === 0 ? 'selected' : ''}>0%</option>
+                <option value="5" ${item.gst === 5 ? 'selected' : ''}>5%</option>
+                <option value="12" ${item.gst === 12 ? 'selected' : ''}>12%</option>
+                <option value="18" ${item.gst === 18 ? 'selected' : ''}>18%</option>
+                <option value="28" ${item.gst === 28 ? 'selected' : ''}>28%</option>
+              </select>
+            </div>
+            <div class="md:col-span-1.5 md:col-span-1">
+              <label class="block text-[8px] uppercase font-mono font-bold text-slate-500 mb-0.5">Quantity</label>
+              <input type="number" min="1" value="${item.qty}" oninput="updateItemField(${index}, 'qty', parseFloat(this.value))" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded p-1.5 text-xs font-bold text-right focus:outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-[8px] uppercase font-mono font-bold text-slate-500 mb-0.5">Rate (${currencySymbols[state.meta.currency]})</label>
+              <input type="number" min="01" value="${item.rate}" oninput="updateItemField(${index}, 'rate', parseFloat(this.value))" class="w-full bg-[#182235] border border-slate-800 text-slate-200 rounded p-1.5 text-xs font-bold text-right focus:outline-none">
+            </div>
+            <div class="md:col-span-2 text-right">
+              <label class="block text-[8px] uppercase font-mono font-bold text-slate-500 mb-0.5">Total Amount</label>
+              <div class="text-xs font-bold text-white pt-2 font-mono" id="item-row-total-${index}">
+                ${currencySymbols[state.meta.currency]}${(item.qty * item.rate).toFixed(2)}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Extra item features -->
+          <div class="flex items-center space-x-3 pt-1 text-[10px]">
+            <button onclick="alert('Description rich-text box attached!')" class="text-slate-400 hover:text-indigo-400 flex items-center font-bold">
+              <i data-lucide="text-quote" class="w-3 h-3 mr-1"></i> Add Description
+            </button>
+            <button onclick="alert('Upload image attached for line product!')" class="text-slate-400 hover:text-emerald-400 flex items-center font-bold">
+              <i data-lucide="image" class="w-3 h-3 mr-1"></i> Add Image
+            </button>
+          </div>
+        `;
+        container.appendChild(itemBox);
+      });
+
+      // Update Counter Badge
+      document.getElementById('items-counter-badge').textContent = `${state.items.length} ITEMS ACTIVE`;
+      
+      // Update Lucide template icons
+      lucide.createIcons();
+    }
+
+    function addNewLineItem() {
+      const nextId = (state.items.length + 1).toString();
+      state.items.push({
+        id: nextId,
+        name: "Premium Consulting Service Block",
+        hsn: "9983",
+        gst: 18,
+        qty: 1,
+        rate: 500
+      });
+      renderLineItemsEditor();
+      calculateTotals();
+    }
+
+    function updateItemField(index, key, val) {
+      if (key === 'gst' || key === 'qty' || key === 'rate') {
+        const numVal = parseFloat(val) || 0;
+        state.items[index][key] = numVal;
+      } else {
+        state.items[index][key] = val;
+      }
+      
+      // Calculate row total quickly In Form UI
+      const sub = state.items[index].qty * state.items[index].rate;
+      document.getElementById(`item-row-total-${index}`).textContent = currencySymbols[state.meta.currency] + sub.toFixed(2);
+      
+      calculateTotals();
+    }
+
+    function moveItem(index, direction) {
+      const targetIndex = index + direction;
+      if (targetIndex >= 0 && targetIndex < state.items.length) {
+        const temp = state.items[index];
+        state.items[index] = state.items[targetIndex];
+        state.items[targetIndex] = temp;
+        renderLineItemsEditor();
+        calculateTotals();
+      }
+    }
+
+    function duplicateItem(index) {
+      const orig = state.items[index];
+      state.items.push({
+        ...orig,
+        id: (state.items.length + 1).toString()
+      });
+      renderLineItemsEditor();
+      calculateTotals();
+    }
+
+    function deleteItem(index) {
+      if (state.items.length <= 1) {
+        alert("Must contain at least one line item!");
+        return;
+      }
+      state.items.splice(index, 1);
+      renderLineItemsEditor();
+      calculateTotals();
+    }
+
+    // GENERAL MATH TOTALS & PDF RENDERING COMPILER
+    function calculateTotals() {
+      const curr = currencySymbols[state.meta.currency];
+      let subTotalSum = 0;
+      let cgstTotalSum = 0;
+      let sgstTotalSum = 0;
+      
+      // Clear dynamic invoice preview rows
+      const tbody = document.getElementById('p-table-body');
+      tbody.innerHTML = '';
+
+      state.items.forEach((item, index) => {
+        const amount = item.qty * item.rate;
+        subTotalSum += amount;
+
+        // CGST / SGST is half of flat GST percentage rate
+        const cgstPct = item.gst / 2;
+        const sgstPct = item.gst / 2;
+
+        const cgstAmount = amount * (cgstPct / 100);
+        const sgstAmount = amount * (sgstPct / 100);
+
+        cgstTotalSum += cgstAmount;
+        sgstTotalSum += sgstAmount;
+
+        const rowTotal = amount + cgstAmount + sgstAmount;
+
+        // Render Row dynamically in final live preview
+        const tr = document.createElement('tr');
+        // Alternating background colors like the user image (striping)
+        tr.className = index % 2 === 1 ? "bg-slate-50/50" : "";
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold text-slate-900 leading-snug">
+            <div class="font-bold">${index + 1}. ${item.name}</div>
+            <div class="text-[7.5px] text-slate-400 font-light font-mono hsn-col">HSN: ${item.hsn}</div>
+          </td>
+          <td class="py-2.5 px-2 text-center text-slate-700">${item.gst}%</td>
+          <td class="py-2.5 px-2 text-right text-slate-700 font-bold">${item.qty}</td>
+          <td class="py-2.5 px-2 text-right text-slate-700">${curr}${item.rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td class="py-2.5 px-2 text-right text-slate-700 font-mono">${curr}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td class="py-2.5 px-2 text-right text-slate-500 font-mono">${curr}${cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td class="py-2.5 px-2 text-right text-slate-500 font-mono">${curr}${sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-slate-900 font-mono">${curr}${rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Fetch values for discounts/delivery charges
+      const discountPct = parseFloat(document.getElementById('discount-pct-input').value) || 0;
+      const discountAmount = subTotalSum * (discountPct / 100);
+      
+      const deliveryCharges = parseFloat(document.getElementById('delivery-charge-input').value) || 0;
+
+      // Calculate Real Final Grand Total
+      const subTotalWithDiscounts = subTotalSum - discountAmount;
+      const grandTotalResult = subTotalWithDiscounts + cgstTotalSum + sgstTotalSum + deliveryCharges;
+
+      // Convert Grand Total as text/words
+      const wordString = numberToEnglishWords(Math.round(grandTotalResult), state.meta.currency);
+
+      // Save/Render in Preview card
+      document.getElementById('p-subtotal').textContent = curr + subTotalSum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('p-cgst').textContent = curr + cgstTotalSum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('p-sgst').textContent = curr + sgstTotalSum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('p-charges').textContent = curr + deliveryCharges.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      
+      if (state.meta.showPDFTotals) {
+        document.getElementById('p-grandtotal').textContent = curr + grandTotalResult.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      } else {
+        document.getElementById('p-grandtotal').textContent = curr + "----";
+      }
+
+      // Live Words rendering
+      document.getElementById('live-words-span').textContent = wordString;
+      document.getElementById('p-words-span').textContent = wordString;
+    }
+
+    // Convert Numbers to English string representations
+    function numberToEnglishWords(amount, currencyCode) {
+      if (amount === 0) return "Zero Rupees Only";
+      
+      const singleDigits = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+      const doubleDigits = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+      const tensDigits = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+      function convertGroup(num) {
+        let str = "";
+        if (num >= 100) {
+          str += singleDigits[Math.floor(num / 100)] + " Hundred ";
+          num %= 100;
+        }
+        if (num >= 10 && num < 20) {
+          str += doubleDigits[num - 10] + " ";
+        } else if (num >= 20 || num > 0) {
+          str += tensDigits[Math.floor(num / 10)] + " ";
+          str += singleDigits[num % 10] + " ";
+        }
+        return str;
+      }
+
+      let words = "";
+      
+      if (currencyCode === 'INR') {
+        // Indian Place Value rules (Crore, Lakh, Thousand, Hundred, Rupees)
+        let crores = Math.floor(amount / 10000000);
+        amount %= 10000000;
+        let lakhs = Math.floor(amount / 100000);
+        amount %= 100000;
+        let thousands = Math.floor(amount / 1000);
+        amount %= 1000;
+        
+        if (crores > 0) words += convertGroup(crores) + "Crore ";
+        if (lakhs > 0) words += convertGroup(lakhs) + "Lakh ";
+        if (thousands > 0) words += convertGroup(thousands) + "Thousand ";
+        if (amount > 0) words += convertGroup(amount);
+        
+        return words.trim() + " Rupees Only";
+      } else {
+        // Million/Billion English Standard formatting
+        let millions = Math.floor(amount / 1000000);
+        amount %= 1000000;
+        let thousands = Math.floor(amount / 1000);
+        amount %= 1000;
+
+        if (millions > 0) words += convertGroup(millions) + "Million ";
+        if (thousands > 0) words += convertGroup(thousands) + "Thousand ";
+        if (amount > 0) words += convertGroup(amount);
+
+        const suffix = currencyCode === 'USD' ? "Dollars Only" : (currencyCode === 'EUR' ? "Euros Only" : "Units Only");
+        return words.trim() + " " + suffix;
+      }
+    }
+
+    function editTermsAndConditions() {
+      const items = [];
+      const count = prompt("How many Terms and Conditions lines do you wish to specify?", "3");
+      const numLines = parseInt(count) || 3;
+      
+      for(let i = 0; i < numLines; i++) {
+        const line = prompt(`Enter Term #${i + 1}:`, state.terms[i] || `Work will resume after advance payment.`);
+        if (line) {
+          items.push(line);
+        }
+      }
+
+      if (items.length > 0) {
+        state.terms = items;
+        // Render in invoice preview
+        const ol = document.getElementById('p-terms');
+        ol.innerHTML = '';
+        state.terms.forEach(term => {
+          const li = document.createElement('li');
+          li.textContent = term;
+          ol.appendChild(li);
+        });
+      }
+    }
+
+    function submitSaveContinue() {
+      alert(`Quotation successfully finalized and compiled! Ready for scheduled delivery block.`);
+    }
+  </script>
+</body>
+</html>

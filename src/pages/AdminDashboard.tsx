@@ -467,6 +467,23 @@ export default function AdminDashboard() {
           </div>
 
           <button
+            onClick={toggleTheme}
+            className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900/40 transition-all cursor-pointer"
+          >
+            {theme === "dark" ? (
+              <>
+                <Sun className="w-4 h-4 text-amber-400" />
+                <span>Light Theme</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-indigo-400" />
+                <span>Dark Theme</span>
+              </>
+            )}
+          </button>
+
+          <button
             onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-rose-455 hover:text-rose-350 hover:bg-rose-950/20 transition-all cursor-pointer"
           >

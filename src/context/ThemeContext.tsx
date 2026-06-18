@@ -11,21 +11,54 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
-    localStorage.setItem("leadsmart_theme", "dark");
+    const hasReset = localStorage.getItem("leadsmart_theme_reset_v3");
+    let initialTheme: Theme = "light";
+    if (hasReset) {
+      const savedTheme = localStorage.getItem("leadsmart_theme") as Theme | null;
+      initialTheme = savedTheme || "light";
+    } else {
+      localStorage.setItem("leadsmart_theme", "light");
+      localStorage.setItem("leadsmart_theme_reset_v3", "true");
+    }
+    setThemeState(initialTheme);
     const root = window.document.documentElement;
-    root.classList.add("dark");
-    root.classList.remove("light");
+    if (initialTheme === "dark") {
+      root.classList.add("dark");
+      root.classList.remove("light");
+    } else {
+      root.classList.add("light");
+      root.classList.remove("dark");
+    }
   }, []);
 
   const toggleTheme = () => {
-    // Disabled
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setThemeState(nextTheme);
+    localStorage.setItem("leadsmart_theme", nextTheme);
+    const root = window.document.documentElement;
+    if (nextTheme === "dark") {
+      root.classList.add("dark");
+      root.classList.remove("light");
+    } else {
+      root.classList.add("light");
+      root.classList.remove("dark");
+    }
   };
 
   const setTheme = (newTheme: Theme) => {
-    setThemeState("dark");
+    setThemeState(newTheme);
+    localStorage.setItem("leadsmart_theme", newTheme);
+    const root = window.document.documentElement;
+    if (newTheme === "dark") {
+      root.classList.add("dark");
+      root.classList.remove("light");
+    } else {
+      root.classList.add("light");
+      root.classList.remove("dark");
+    }
   };
 
   return (

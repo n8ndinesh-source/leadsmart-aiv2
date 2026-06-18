@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { Lead, LeadNote, LeadTag, LeadActivity } from "../types";
+import QuotationModal from "./QuotationModal";
+import { useTheme } from "../context/ThemeContext";
 
 const PIPELINE_STATUSES = [
   "New",
@@ -23,6 +25,7 @@ const PRIORITY_LEVELS = ["Hot", "Warm", "Cold"];
 const SOURCE_LEVELS = ["WhatsApp", "Manual", "Import"];
 
 export function LeadManagementConsole() {
+  const { theme } = useTheme();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +68,7 @@ export function LeadManagementConsole() {
   const [importDelimiter, setImportDelimiter] = useState<"comma" | "pipe" | "tab">("comma");
 
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
+  const [quotationLead, setQuotationLead] = useState<any | null>(null);
   
   // Drag and Drop State
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
@@ -815,11 +819,19 @@ export function LeadManagementConsole() {
         </div>
       ) : viewMode === "Table" ? (
         /* TABLE GRID LAYOUT */
-        <div className="border border-slate-900 rounded-2xl bg-slate-950/20 overflow-hidden shadow-2xl">
+        <div className={`border rounded-2xl overflow-hidden shadow-2xl transition-all ${
+          theme === "light"
+            ? "border-indigo-100 bg-white"
+            : "border-slate-900 bg-slate-950/20"
+        }`}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-950/80 text-slate-400 border-b border-slate-900 uppercase tracking-widest text-[9px] font-bold select-none">
+                <tr className={`uppercase tracking-widest text-[9px] font-bold select-none border-b ${
+                  theme === "light"
+                    ? "bg-slate-50 text-slate-500 border-indigo-100"
+                    : "bg-slate-950/80 text-slate-400 border-slate-900"
+                }`}>
                   <th className="py-3.5 px-4 font-mono">Lead Identity</th>
                   <th className="py-3.5 px-4 font-mono">Channel Info</th>
                   <th className="py-3.5 px-4 font-mono">Source</th>
@@ -829,7 +841,11 @@ export function LeadManagementConsole() {
                   <th className="py-3.5 px-4 font-mono text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-900/40 text-slate-300 font-light">
+              <tbody className={`divide-y font-light ${
+                theme === "light"
+                  ? "divide-indigo-100/40 text-slate-700"
+                  : "divide-slate-900/40 text-slate-300"
+              }`}>
                 {filteredLeads.map((lead) => {
                   const statusColors = getStatusColors(lead.status);
                   const priorityColors = getPriorityColors(lead.priority);
@@ -838,19 +854,31 @@ export function LeadManagementConsole() {
                   return (
                     <tr 
                       key={lead.id} 
-                      className={`hover:bg-slate-900/40 transition-all cursor-pointer group ${
-                        selectedLeadId === lead.id ? "bg-indigo-600/10 border-l-2 border-indigo-500" : ""
+                      className={`transition-all cursor-pointer group ${
+                        theme === "light" ? "hover:bg-indigo-50/45" : "hover:bg-slate-900/40"
+                      } ${
+                        selectedLeadId === lead.id 
+                          ? theme === "light"
+                            ? "bg-indigo-50/70 border-l-2 border-indigo-500"
+                            : "bg-indigo-600/10 border-l-2 border-indigo-500" 
+                          : ""
                       }`}
                       onClick={() => setSelectedLeadId(lead.id)}
                     >
                       {/* Name, Phone, Email */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-lg ${priorityColors.bg} flex items-center justify-center font-bold text-[13px] ${priorityColors.text} shrink-0 border border-slate-900`}>
-                            {lead.name.charAt(0).toUpperCase()}
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold font-mono text-[10px] shrink-0 transition-all ${
+                            theme === "light"
+                              ? "bg-indigo-50/80 text-indigo-600 shadow-sm"
+                              : "bg-[#182235]/85 text-[#818cf8] shadow-inner"
+                          }`}>
+                            #{leads.findIndex(l => l.id === lead.id) + 1}
                           </div>
                           <div>
-                            <span className="block font-semibold text-white font-display group-hover:text-indigo-400 transition-colors">
+                            <span className={`block font-semibold font-display group-hover:text-indigo-600 transition-colors ${
+                              theme === "light" ? "text-slate-800" : "text-white"
+                            }`}>
                               {lead.name}
                             </span>
                             {lead.email && (
@@ -917,6 +945,17 @@ export function LeadManagementConsole() {
                       {/* Action columns */}
                       <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center space-x-2">
+                          {lead.status.toLowerCase() === "qualified" && (
+                            <button
+                              type="button"
+                              onClick={() => setQuotationLead(lead)}
+                              className="p-1 px-2 text-indigo-400 bg-indigo-600/10 hover:bg-indigo-600 hover:text-white rounded text-[10px] uppercase font-bold flex items-center cursor-pointer transition-all"
+                              title="Construct Quotation Proposal"
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              <span>Quote</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => setSelectedLeadId(lead.id)}
                             className="p-1 px-2 text-indigo-400 hover:bg-slate-800 rounded text-[10px] uppercase font-bold flex items-center cursor-pointer transition-colors"
@@ -1016,14 +1055,33 @@ export function LeadManagementConsole() {
                             stopDragScroll();
                           }}
                           onClick={() => setSelectedLeadId(card.id)}
-                          className={`p-3 rounded-lg bg-slate-950/70 border border-slate-900 hover:border-indigo-500/40 transition-all cursor-pointer group hover:shadow-lg hover:shadow-indigo-950/5 relative select-none ${
+                          className={`p-3 rounded-lg border transition-all cursor-pointer group hover:shadow-lg hover:shadow-indigo-950/5 relative select-none ${
+                            theme === "light"
+                              ? "bg-[#e7e7fc] border-indigo-200 hover:border-indigo-400"
+                              : "bg-slate-950/70 border-slate-900 hover:border-indigo-500/40"
+                          } ${
                             selectedLeadId === card.id ? "ring-1 ring-indigo-500 border-indigo-500" : ""
                           } ${draggedLeadId === card.id ? "opacity-50 ring-1 ring-indigo-500/50" : ""}`}
                         >
-                          <div className="flex items-start justify-between gap-1.5">
-                            <span className="block text-white font-semibold font-display text-xs group-hover:text-indigo-400 transition-colors line-clamp-1">
-                              {card.name}
-                            </span>
+                          <div className="flex items-start justify-between gap-1.5 font-sans">
+                            <div className="flex items-center space-x-1.5 min-w-0">
+                              <span className="block text-white font-semibold font-display text-xs group-hover:text-indigo-400 transition-colors line-clamp-1">
+                                {card.name}
+                              </span>
+                              {card.status.toLowerCase() === "qualified" && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setQuotationLead(card);
+                                  }}
+                                  className="p-1 rounded bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white transition-all shrink-0 cursor-pointer"
+                                  title="Construct Quotation Proposal"
+                                >
+                                  <FileText className="w-2.5 h-2.5" />
+                                </button>
+                              )}
+                            </div>
                             <span className={`text-[8px] font-extrabold px-1.5 py-0.2 rounded uppercase shrink-0 ${priorityStyle.badgeBg} ${priorityStyle.text}`}>
                               {card.priority}
                             </span>
@@ -1074,16 +1132,28 @@ export function LeadManagementConsole() {
 
       {/* SECTION 4: LEAD ACTIONS DETAILS DRAWER SIDEBAR */}
       {selectedLeadId && selectedLead && (
-        <div className="fixed inset-y-0 right-0 w-full md:w-[480px] bg-slate-950 border-l border-slate-900 z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-250">
+        <div className={`fixed inset-y-0 right-0 w-full md:w-[480px] z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-250 ${
+          theme === "light"
+            ? "bg-white border-l border-indigo-100"
+            : "bg-slate-950 border-l border-slate-900"
+        }`}>
           
           {/* Header */}
-          <div className="p-4 border-b border-slate-905 flex items-center justify-between bg-slate-950/80 backdrop-blur-md">
+          <div className={`p-4 border-b flex items-center justify-between backdrop-blur-md ${
+            theme === "light"
+              ? "bg-[#e7e7fc] border-indigo-100/80" 
+              : "bg-slate-950/80 border-slate-900/55"
+          }`}>
             <div className="flex items-center space-x-2.5">
-              <div className="w-9 h-9 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center font-bold text-indigo-400 font-display text-[15px]">
-                {selectedLead.name.charAt(0).toUpperCase()}
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold font-mono text-[10px] shrink-0 transition-all ${
+                theme === "light"
+                  ? "bg-indigo-100/70 text-indigo-700 shadow-sm" 
+                  : "bg-[#182235]/85 text-[#818cf8] shadow-inner"
+              }`}>
+                #{leads.findIndex(l => l.id === selectedLead.id) + 1}
               </div>
               <div>
-                <h3 className="font-display font-semibold text-white text-sm tracking-tight">{selectedLead.name}</h3>
+                <h3 className={`font-display font-semibold text-sm tracking-tight ${theme === "light" ? "text-slate-800" : "text-white"}`}>{selectedLead.name}</h3>
                 <span className="block text-[9px] text-slate-500 font-mono">
                   ID: #{leads.findIndex(l => l.id === selectedLead.id) + 1}
                 </span>
@@ -1091,25 +1161,47 @@ export function LeadManagementConsole() {
             </div>
             <button
               onClick={() => setSelectedLeadId(null)}
-              className="p-1.5 rounded-lg text-slate-450 hover:text-white hover:bg-slate-900 transition-all cursor-pointer"
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                theme === "light"
+                  ? "text-slate-500 hover:text-slate-800 hover:bg-indigo-100/50"
+                  : "text-slate-450 hover:text-white hover:bg-slate-900"
+              }`}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Sub-tabs Selection bar */}
-          <div className="flex border-b border-indigo-950 bg-[#040815] p-1 gap-1 shrink-0">
+          <div className={`flex p-1.5 gap-1 shrink-0 border-b ${
+            theme === "light"
+              ? "border-indigo-100/80 bg-slate-100"
+              : "border-indigo-950/40 bg-[#040815]"
+          }`}>
             <button
               type="button"
               onClick={() => setSidebarTab("profile")}
-              className={`flex-1 py-1.5 rounded-md font-bold text-[10px] uppercase font-display tracking-wider cursor-pointer text-center transition-all ${sidebarTab === "profile" ? "bg-indigo-650 text-white shadow-md shadow-indigo-650/20 shadow-indigo-500/10" : "text-slate-400 hover:text-slate-200"}`}
+              className={`flex-1 py-1.5 rounded-md font-bold text-[10px] uppercase font-display tracking-wider cursor-pointer text-center transition-all ${
+                sidebarTab === "profile" 
+                  ? theme === "light"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
+                    : "bg-indigo-600 text-white shadow-md"
+                  : theme === "light"
+                    ? "text-slate-550 hover:text-slate-850 hover:bg-slate-200/40"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+              }`}
             >
               📊 Core Profile & Stats
             </button>
             <button
               type="button"
               onClick={() => setSidebarTab("whatsapp")}
-              className={`flex-1 py-1.5 rounded-md font-bold text-[10px] uppercase font-display tracking-wider cursor-pointer text-center transition-all flex items-center justify-center space-x-1.5 ${sidebarTab === "whatsapp" ? "bg-[#128c7e] text-white shadow-md shadow-emerald-650/25" : "text-slate-400 hover:text-slate-200"}`}
+              className={`flex-1 py-1.5 rounded-md font-bold text-[10px] uppercase font-display tracking-wider cursor-pointer text-center transition-all flex items-center justify-center space-x-1.5 ${
+                sidebarTab === "whatsapp" 
+                  ? "bg-[#128c7e] text-white shadow-md" 
+                  : theme === "light"
+                    ? "text-slate-550 hover:text-[#128c7e] hover:bg-slate-200/40"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+              }`}
             >
               <span>💬 Live WhatsApp Chat</span>
               {selectedLead.conversationStatus === "Unread" && (
@@ -1121,6 +1213,33 @@ export function LeadManagementConsole() {
           {/* Details Scrollable Stream */}
           {sidebarTab === "profile" && (
             <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
+
+              {/* QUOTATION PROPOSAL WIDGET */}
+              <div className={`p-4 rounded-xl border flex flex-col space-y-3 transition-all ${
+                selectedLead.status.toLowerCase() === "qualified"
+                  ? "bg-amber-950/20 border-amber-500/30 text-amber-350 shadow-md shadow-amber-950/10"
+                  : "bg-[#070c1a]/60 border-slate-900 text-slate-300"
+              }`}>
+                <div className="flex items-start space-x-2.5">
+                  <FileText className="w-4.5 h-4.5 text-indigo-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold uppercase text-white font-display">Quotation Dispatch Hub</h4>
+                    <p className="text-[10px] text-slate-400 leading-normal mt-0.5 font-light">
+                      {selectedLead.status.toLowerCase() === "qualified" 
+                        ? "📄 Proposal Status: QUALIFIED. Compile, manage pricing, and execute scheduled robot sending."
+                        : "Compile, manage pricing, and execute scheduled robot sending for this potential contract."}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuotationLead(selectedLead)}
+                  className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-lg shadow-indigo-650/10 active:scale-95"
+                >
+                  <span>Launch Quotation Engine</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
             {/* Grid 1: Basic editing values */}
             <div className="bg-slate-950/40 p-3.5 border border-slate-900/60 rounded-xl space-y-3.5">
@@ -1188,28 +1307,40 @@ export function LeadManagementConsole() {
             </div>
 
             {/* AI READINESS BLOCK (IMPORTANT) */}
-            <div className="p-4 rounded-xl bg-indigo-950/15 border border-indigo-900/20 space-y-3 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-3 text-indigo-505/10 group-hover:text-indigo-505/20 transition-all pointer-events-none">
+            <div className={`p-4 rounded-xl space-y-3 relative overflow-hidden group ${
+              theme === "light"
+                ? "bg-[#e7e7fc] border border-indigo-200"
+                : "bg-indigo-950/15 border border-indigo-900/20"
+            }`}>
+              <div className={`absolute top-0 right-0 p-3 pointer-events-none opacity-10 group-hover:opacity-20 transition-opacity duration-300 ${
+                theme === "light" ? "text-indigo-600" : "text-indigo-400"
+              }`}>
                 <Brain className="w-16 h-16" />
               </div>
-              <div className="flex items-center space-x-1.5">
-                <Brain className="w-4 h-4 text-indigo-400 shrink-0" />
-                <h4 className="font-display font-bold text-xs uppercase text-indigo-450 tracking-wider">AI Integration Intelligence</h4>
-                <span className="text-[8px] font-extrabold text-indigo-400 bg-indigo-900/30 px-1.5 py-0.2 rounded shrink-0 uppercase tracking-widest leading-none">AI Readiness</span>
+              <div className="flex items-center space-x-1.5 relative z-10">
+                <Brain className={`w-4 h-4 shrink-0 ${theme === "light" ? "text-indigo-600" : "text-indigo-400"}`} />
+                <h4 className={`font-display font-bold text-xs uppercase tracking-wider ${theme === "light" ? "text-indigo-900" : "text-indigo-400"}`}>AI Integration Intelligence</h4>
+                <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded shrink-0 uppercase tracking-widest leading-none ${
+                  theme === "light" ? "text-indigo-700 bg-indigo-100 border border-indigo-200" : "text-indigo-400 bg-indigo-900/30"
+                }`}>AI Readiness</span>
               </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed font-light">
+              <p className={`text-[10px] leading-relaxed font-light relative z-10 ${theme === "light" ? "text-slate-700" : "text-slate-400"}`}>
                 These scores and suggestions align with <b>Phase 7 (AI Decision Engine)</b>. Values will generate automatically when live WhatsApp chat traffic starts.
               </p>
 
               {/* Rating metrics input simulator */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-900">
+              <div className="grid grid-cols-2 gap-3 pt-1 relative z-10">
+                <div className={`p-2.5 rounded-lg border ${
+                  theme === "light" ? "bg-white border-indigo-100" : "bg-slate-950/60 border-slate-900"
+                }`}>
                   <div className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">Intent Strength</div>
                   <div className="mt-1 flex items-baseline space-x-1">
-                    <span className="text-sm font-bold text-white font-mono">{selectedLead.intentScore !== null ? `${selectedLead.intentScore}%` : "Not evaluated"}</span>
+                    <span className={`text-sm font-bold font-mono ${theme === "light" ? "text-slate-900" : "text-white"}`}>
+                      {selectedLead.intentScore !== null ? `${selectedLead.intentScore}%` : "Not evaluated"}
+                    </span>
                   </div>
                   {/* Simulate scoring capability */}
-                  <div className="mt-1 bg-slate-900 rounded-full h-1 relative overflow-hidden">
+                  <div className={`mt-1 rounded-full h-1 relative overflow-hidden ${theme === "light" ? "bg-slate-100" : "bg-slate-900"}`}>
                     <div className="h-full bg-indigo-500" style={{ width: selectedLead.intentScore !== null ? `${selectedLead.intentScore}%` : "0%" }} />
                   </div>
                   <div className="mt-2" onClick={(e) => e.stopPropagation()}>
@@ -1224,12 +1355,16 @@ export function LeadManagementConsole() {
                   </div>
                 </div>
 
-                <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-900">
+                <div className={`p-2.5 rounded-lg border ${
+                  theme === "light" ? "bg-white border-indigo-100" : "bg-slate-950/60 border-slate-900"
+                }`}>
                   <div className="text-[9px] text-slate-500 uppercase tracking-widest font-mono">Lead Qualifier</div>
                   <div className="mt-1 flex items-baseline space-x-1">
-                    <span className="text-sm font-bold text-purple-400 font-mono">{selectedLead.leadScore !== null ? `${selectedLead.leadScore}/100` : "Not calibrated"}</span>
+                    <span className={`text-sm font-bold font-mono ${theme === "light" ? "text-purple-700" : "text-purple-400"}`}>
+                      {selectedLead.leadScore !== null ? `${selectedLead.leadScore}/100` : "Not calibrated"}
+                    </span>
                   </div>
-                  <div className="mt-1 bg-slate-900 rounded-full h-1 relative overflow-hidden">
+                  <div className={`mt-1 rounded-full h-1 relative overflow-hidden ${theme === "light" ? "bg-slate-100" : "bg-slate-900"}`}>
                     <div className="h-full bg-purple-500" style={{ width: selectedLead.leadScore !== null ? `${selectedLead.leadScore}%` : "0%" }} />
                   </div>
                   <div className="mt-2" onClick={(e) => e.stopPropagation()}>
@@ -1246,10 +1381,14 @@ export function LeadManagementConsole() {
               </div>
 
               {/* Recommendation panel */}
-              <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-900/60 mt-1">
+              <div className={`p-2.5 rounded-lg border mt-1 relative z-10 ${
+                theme === "light" ? "bg-white border-indigo-100" : "bg-slate-950/40 border-slate-900/60"
+              }`}>
                 <span className="block text-[9px] text-slate-500 uppercase font-mono tracking-wider">AI Recommended Next Best Action</span>
                 <textarea
-                  className="w-full bg-transparent border-0 text-[11px] text-slate-300 mt-1 h-12 focus:ring-0 focus:outline-none resize-none font-light italic leading-relaxed placeholder-slate-650"
+                  className={`w-full bg-transparent border-0 text-[11px] mt-1 h-12 focus:ring-0 focus:outline-none resize-none font-light italic leading-relaxed ${
+                    theme === "light" ? "text-slate-800 placeholder-slate-400" : "text-slate-300 placeholder-slate-650"
+                  }`}
                   placeholder="Enter custom recommendation or wait for AI engine generation on active channels..."
                   value={selectedLead.aiRecommendation || ""}
                   onChange={(e) => handleUpdateLeadField(selectedLead.id, "aiRecommendation", e.target.value)}
@@ -1257,13 +1396,17 @@ export function LeadManagementConsole() {
               </div>
 
               {/* Latest Intent Memory */}
-              <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-900/60 mt-2 flex items-center justify-between">
+              <div className={`p-2.5 rounded-lg border mt-2 flex items-center justify-between relative z-10 ${
+                theme === "light" ? "bg-white border-indigo-100" : "bg-slate-950/40 border-slate-900/60"
+              }`}>
                 <div>
                   <span className="block text-[9px] text-slate-500 uppercase font-mono tracking-wider">Latest Detected Intent</span>
-                  <span className="text-[11px] text-indigo-450 font-semibold uppercase mt-0.5 block">{selectedLead.latestIntent || "UNKNOWN"}</span>
+                  <span className={`text-[11px] font-semibold uppercase mt-0.5 block ${theme === "light" ? "text-indigo-900" : "text-indigo-400"}`}>{selectedLead.latestIntent || "UNKNOWN"}</span>
                 </div>
                 {selectedLead.latestIntent && (
-                  <span className="text-[8px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 px-1.5 py-0.5 rounded font-mono uppercase tracking-tight">
+                  <span className={`text-[8px] px-1.5 py-0.5 rounded font-mono uppercase tracking-tight ${
+                    theme === "light" ? "bg-indigo-100 text-indigo-700 border border-indigo-200" : "bg-indigo-950/40 text-indigo-400 border border-indigo-900/40"
+                  }`}>
                     Active Intent
                   </span>
                 )}
@@ -1694,68 +1837,115 @@ export function LeadManagementConsole() {
           )}
 
           {sidebarTab === "whatsapp" && (
-            <div className="flex-1 flex flex-col bg-[#040815] overflow-hidden">
+            <div className={`flex-1 flex flex-col overflow-hidden ${
+              theme === "light" ? "bg-slate-50" : "bg-[#040815]"
+            }`}>
               
               {/* WhatsApp specific header / stats row */}
-              <div className="p-3 bg-slate-950 border-b border-indigo-950 flex items-center justify-between text-[11px]">
+              <div className={`p-3 flex items-center justify-between text-[11px] border-b ${
+                theme === "light"
+                  ? "bg-slate-100/90 border-indigo-100"
+                  : "bg-slate-950 border-indigo-950"
+              }`}>
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#1ebea5]" />
-                  <span className="text-slate-400 font-mono font-medium">{selectedLead.phoneNumber}</span>
+                  <span className={`font-mono font-medium ${theme === "light" ? "text-slate-705" : "text-slate-400"}`}>{selectedLead.phoneNumber}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-[10px] text-slate-505 font-mono">Status:</span>
-                  <span className="px-1.5 py-0.5 rounded bg-indigo-950/40 text-indigo-400 text-[10px] font-mono leading-none">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono leading-none ${
+                    theme === "light"
+                      ? "bg-indigo-100 text-indigo-700 border border-indigo-200/50"
+                      : "bg-indigo-950/40 text-indigo-400"
+                  }`}>
                     {selectedLead.conversationStatus || "Idle"}
                   </span>
                 </div>
               </div>
 
-              {/* Chat messages scrollable stream */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 scrollbar-thin bg-[#030611]/80 flex flex-col min-h-0">
-                {chatLoading && whatsappMessages.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500 text-xs font-light my-auto">
-                    <span>Synchronizing communications stream...</span>
-                  </div>
-                ) : whatsappMessages.length === 0 ? (
-                  <div className="text-center py-12 space-y-2 max-w-xs mx-auto my-auto">
-                    <span className="block text-[#1ebea5] font-bold text-lg">💬</span>
-                    <h5 className="font-bold text-white text-xs uppercase leading-none">No conversation traffic yet</h5>
-                    <p className="text-[10px] text-slate-500 font-light leading-relaxed">No messages have been processed for this contact. Use the dispatcher panel below to execute an outbound template push notification or greeting.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 mt-auto">
-                    {/* Instant back-history render */}
-                    {whatsappMessages.map((msg: any) => {
-                      const isIncoming = msg.direction === "IN" || msg.direction === "incoming";
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`flex ${isIncoming ? "justify-start" : "justify-end"}`}
-                        >
+              {/* Chat messages viewport with fixed custom background */}
+              <div className={`flex-grow flex flex-col min-h-0 relative overflow-hidden ${
+                theme === "light" ? "bg-[#efeae2]" : "bg-[#0b141a]"
+              }`}>
+                {/* WhatsApp Doodle Pattern Overlay - served locally */}
+                <div 
+                  className={`absolute inset-0 pointer-events-none ${
+                    theme === "light"
+                      ? "opacity-[0.82] mix-blend-multiply contrast-[1.1]" 
+                      : "opacity-[0.08] invert"
+                  }`}
+                  style={{
+                    backgroundImage: `url('/whatsapp-bg.png')`,
+                    backgroundRepeat: 'repeat',
+                    backgroundSize: '360px',
+                  }}
+                />
+
+                {/* Real scrollable messages stream */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3.5 scrollbar-thin flex flex-col relative z-10">
+                  {chatLoading && whatsappMessages.length === 0 ? (
+                    <div className="text-center py-12 text-slate-500 text-xs font-light my-auto relative z-10">
+                      <span>Synchronizing communications stream...</span>
+                    </div>
+                  ) : whatsappMessages.length === 0 ? (
+                    <div className="text-center py-12 space-y-2 max-w-xs mx-auto my-auto relative z-10">
+                      <span className="block text-[#1ebea5] font-bold text-lg">💬</span>
+                      <h5 className={`font-bold text-xs uppercase leading-none ${theme === "light" ? "text-slate-800" : "text-white"}`}>No conversation traffic yet</h5>
+                      <p className={`text-[10px] font-light leading-relaxed ${theme === "light" ? "text-slate-600" : "text-slate-500"}`}>No messages have been processed for this contact. Use the dispatcher panel below to execute an outbound template push notification or greeting.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 mt-auto relative z-10">
+                      {/* Instant back-history render */}
+                      {whatsappMessages.map((msg: any) => {
+                        const isIncoming = msg.direction === "IN" || msg.direction === "incoming";
+                        return (
                           <div
-                            className={`max-w-[82%] rounded-2xl p-3 text-xs leading-relaxed relative ${isIncoming ? "bg-[#182229] text-white border border-[#233138] rounded-tl-none" : "bg-[#005c4b] text-white rounded-tr-none"}`}
+                            key={msg.id}
+                            className={`flex ${isIncoming ? "justify-start" : "justify-end"}`}
                           >
-                            <p className="whitespace-pre-wrap font-sans">{msg.content || msg.message}</p>
-                            <span className="block text-[8px] text-slate-350 font-mono text-right mt-1 leading-none select-none opacity-80">
-                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                            <div
+                              className={`max-w-[82%] rounded-2xl p-3 text-xs leading-relaxed relative ${
+                                isIncoming 
+                                  ? theme === "light"
+                                    ? "bg-white text-slate-800 border border-slate-200/80 rounded-tl-none shadow-sm"
+                                    : "bg-[#182229] text-white border border-[#233138] rounded-tl-none"
+                                  : theme === "light"
+                                    ? "bg-[#d9fdd3] text-slate-800 border border-[#c1fca4]/30 rounded-tr-none shadow-sm"
+                                    : "bg-[#005c4b] text-white rounded-tr-none"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap font-sans">{msg.content || msg.message}</p>
+                              <span className={`block text-[8px] font-mono text-right mt-1 leading-none select-none opacity-80 ${
+                                theme === "light" ? "text-slate-500" : "text-slate-350"
+                              }`}>
+                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Message composer input section */}
-              <form onSubmit={handleSendManualMessage} className="p-3 bg-slate-950 border-t border-indigo-950 space-y-2 shrink-0">
+              <form onSubmit={handleSendManualMessage} className={`p-3 space-y-2 shrink-0 border-t ${
+                theme === "light"
+                  ? "bg-slate-50 border-slate-200/60"
+                  : "bg-slate-950 border-[#1f2c34]"
+              }`}>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={manualMessage}
                     onChange={(e) => setManualMessage(e.target.value)}
                     placeholder="Type a manual WhatsApp message reply..."
-                    className="flex-grow bg-[#0c1226] border border-[#233138] focus:border-indigo-500 outline-none rounded-xl p-2.5 text-xs text-white"
+                    className={`flex-grow outline-none border rounded-xl p-2.5 text-xs transition-all ${
+                      theme === "light"
+                        ? "bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-400"
+                        : "bg-[#0c1226] border-[#233138] focus:border-indigo-500 text-white"
+                    }`}
                   />
                   <button
                     type="submit"
@@ -1765,12 +1955,16 @@ export function LeadManagementConsole() {
                     {sendingMessage ? "Sending..." : "Send"}
                   </button>
                 </div>
-                <div className="flex justify-between items-center text-[10px] text-slate-550 font-mono pt-1">
-                  <span>🤖 Basic AI Auto-Reply Active</span>
+                <div className="flex justify-between items-center text-[10px] font-mono pt-1">
+                  <span className={theme === "light" ? "text-slate-500" : "text-slate-400"}>🤖 Basic AI Auto-Reply Active</span>
                   <button
                     type="button"
                     onClick={() => fetchLeadMessages(selectedLead.id)}
-                    className="text-indigo-400 hover:underline hover:text-indigo-300 flex items-center space-x-1"
+                    className={`flex items-center space-x-1 hover:underline transition-all ${
+                      theme === "light"
+                        ? "text-indigo-600 hover:text-indigo-700"
+                        : "text-indigo-400 hover:text-indigo-300"
+                    }`}
                   >
                     <span>↻ Real-time Sync</span>
                   </button>
@@ -1781,16 +1975,28 @@ export function LeadManagementConsole() {
           )}
 
           {/* Footer controls */}
-          <div className="p-4 border-t border-slate-905 bg-slate-950 flex justify-between gap-4">
+          <div className={`p-4 flex justify-between gap-4 border-t ${
+            theme === "light"
+              ? "bg-[#f8fafc] border-indigo-100/80"
+              : "bg-slate-950 border-slate-905"
+          }`}>
             <button
               onClick={() => setSelectedLeadId(null)}
-              className="flex-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold py-2.5 cursor-pointer text-center"
+              className={`flex-grow rounded-lg text-xs font-semibold py-2.5 cursor-pointer text-center transition-all ${
+                theme === "light"
+                  ? "bg-slate-200/80 hover:bg-slate-200 text-slate-700 font-bold"
+                  : "bg-slate-900 hover:bg-slate-800 text-slate-300"
+              }`}
             >
               Close Inspector
             </button>
             <button
               onClick={() => setLeadToDelete(selectedLead.id)}
-              className="px-4 bg-red-955/10 hover:bg-red-650 text-red-400 hover:text-white rounded-lg text-xs font-semibold py-2.5 border border-red-950/40 transition-all cursor-pointer flex items-center space-x-1 justify-center shrink-0 active:scale-95"
+              className={`px-4 rounded-lg text-xs font-semibold py-2.5 border transition-all cursor-pointer flex items-center space-x-1 justify-center shrink-0 active:scale-95 ${
+                theme === "light"
+                  ? "bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-600"
+                  : "bg-red-955/10 hover:bg-red-650 text-red-100 border-red-950/40"
+              }`}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -2041,6 +2247,18 @@ export function LeadManagementConsole() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* QUOTATION CREATION/MANAGEMENT MODAL */}
+      {quotationLead && (
+        <QuotationModal
+          lead={quotationLead}
+          onClose={() => setQuotationLead(null)}
+          onQuotationCreated={() => {
+            // Trigger refresh
+            api.get<any[]>("/leads").then(data => setLeads(data || [])).catch(e => console.error(e));
+          }}
+        />
       )}
 
     </div>

@@ -53,6 +53,8 @@ model Client {
   testLogs           AITestLogs[]
   leads              Lead[]
   aiPermissions      AIPermission[]
+  quotationTemplates QuotationTemplate[]
+  quotations         Quotation[]
 }
 
 model AIConfiguration {
@@ -153,6 +155,7 @@ model Lead {
   previousStage    String?
   stageHistory     String?        @default("[]")
   leadStageHistories LeadStageHistory[]
+  quotations         Quotation[]
 }
 
 model FollowUp {
@@ -268,6 +271,55 @@ model LeadStageHistory {
   createdAt  DateTime @default(now())
 
   @@map("lead_stage_history")
+}
+
+model QuotationTemplate {
+  id              String   @id @default(uuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name            String   // e.g. "Standard Quotation", "Distributor Quotation", etc.
+  companyName     String
+  logo            String?  // base64 image or url
+  headerBanner    String?  // base64 image or url (Recommended: 2480 x 400 px)
+  footerBanner    String?  // base64 image or url (Recommended: 2480 x 250 px)
+  watermark       String?  // base64 image or url (Recommended: 1500 x 1500 px)
+  watermarkOpacity Int     @default(15) // stored as raw percentage (e.g., 15 for 15%)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  quotations      Quotation[]
+}
+
+model Quotation {
+  id               String   @id @default(uuid())
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  leadId           String
+  lead             Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  templateId       String?
+  template         QuotationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  quotationNumber  String   // e.g. "QT-2026-001"
+  status           String   @default("DRAFT") // DRAFT, READY, SENT, VIEWED, ACCEPTED, REJECTED
+  products         String   // JSON string: array of products { name, description, quantity, price, discount, gst, tax, deliveryCharges }
+  subtotal         Float
+  discountPercent  Float    @default(0)
+  discountAmount   Float    @default(0)
+  gstPercent       Float    @default(0)
+  gstAmount        Float    @default(0)
+  taxPercent       Float    @default(0)
+  taxAmount        Float    @default(0)
+  deliveryCharges  Float    @default(0)
+  grandTotal       Float
+  deliveryTerms    String?
+  paymentTerms     String?
+  validity         String?
+  additionalNotes  String?
+  scheduledAt      DateTime? // Current Time + 5 Minutes (if READY)
+  deliveredAt      DateTime?
+  viewedAt         DateTime?
+  acceptedAt       DateTime?
+  rejectedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 

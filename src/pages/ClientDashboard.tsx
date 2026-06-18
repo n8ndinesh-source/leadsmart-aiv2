@@ -9,6 +9,7 @@ import { LeadManagementConsole } from "../components/LeadManagementConsole";
 import FollowUpConsole from "../components/FollowUpConsole";
 import AiInsightsDashboard from "../components/AiInsightsDashboard";
 import AIAssistantCoPilot from "../components/AIAssistantCoPilot";
+import QuotationTemplatesPanel from "../components/QuotationTemplatesPanel";
 import { 
   BarChart3, 
   MessageSquare, 
@@ -41,7 +42,10 @@ import {
   Sun,
   Moon,
   Terminal,
-  Copy
+  Copy,
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 const BUSINESS_TYPES = [
@@ -63,9 +67,10 @@ export default function ClientDashboard() {
   const { theme, toggleTheme } = useTheme();
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<"dashboard" | "leads" | "followups" | "ai-insights" | "profile" | "settings">("dashboard");
+  const [activeTab, setActiveTab ] = useState<"dashboard" | "leads" | "followups" | "ai-insights" | "quotation-templates" | "profile" | "settings">("dashboard");
   
   // States
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [clientProfile, setClientProfile] = useState<any | null>(null);
   const [planDetails, setPlanDetails] = useState<any | null>(null);
@@ -479,6 +484,17 @@ export default function ClientDashboard() {
         </div>
       )}
 
+      {/* Persistent mini-tab trigger on left edge when collapsed on desktop */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className="hidden md:flex fixed top-24 left-0 z-40 bg-indigo-600 hover:bg-slate-900 border-y border-r border-indigo-500/20 text-white rounded-r-xl py-4.5 px-2 items-center justify-center transition-all cursor-pointer shadow-xl group"
+          title="Expand sidebar"
+        >
+          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:scale-125" />
+        </button>
+      )}
+
       {/* Mobile Top Navbar */}
       <div className="md:hidden border-b border-slate-900 bg-[#070b19] h-12 px-4 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center space-x-2">
@@ -497,8 +513,12 @@ export default function ClientDashboard() {
 
       {/* Sidebar Layout */}
       <aside 
-        className={`fixed md:sticky top-0 left-0 bottom-0 z-30 w-64 bg-[#070a13] border-r border-slate-900 flex flex-col justify-between p-4 transition-transform md:translate-x-0 ${
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed md:sticky top-0 left-0 bottom-0 z-30 bg-[#070a13] border-r border-slate-900 flex flex-col justify-between transition-all duration-300 ${
+          isSidebarCollapsed 
+            ? "md:w-0 md:p-0 md:overflow-hidden md:border-r-0 md:opacity-0 md:pointer-events-none w-64 p-4" 
+            : "w-64 p-4 opacity-100"
+        } ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
         <div className="space-y-6">
@@ -512,6 +532,16 @@ export default function ClientDashboard() {
                 <span className="block text-[9px] text-[#5c68f2] font-semibold uppercase tracking-wider truncate max-w-[130px] leading-tight font-mono">{stats?.companyName || "SME Client"}</span>
               </div>
             </div>
+            
+            {/* Collapse button for desktop */}
+            <button 
+              onClick={() => setIsSidebarCollapsed(true)} 
+              className="hidden md:flex p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900 cursor-pointer items-center justify-center"
+              title="Collapse sidebar"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
             <button className="md:hidden text-slate-400 hover:text-white cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>
               <X className="w-4 h-4" />
             </button>
@@ -581,6 +611,18 @@ export default function ClientDashboard() {
             </button>
 
             <button
+              onClick={() => { setActiveTab("quotation-templates"); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
+                activeTab === "quotation-templates"
+                  ? "bg-indigo-600/10 text-indigo-400 border-l-2 border-indigo-500 pl-2"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900/40"
+              }`}
+            >
+              <FileText className="w-4 h-4 text-indigo-400 animate-pulse" />
+              <span>Quotation Templates</span>
+            </button>
+
+            <button
               onClick={() => { setActiveTab("profile"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
                 activeTab === "profile"
@@ -618,6 +660,23 @@ export default function ClientDashboard() {
           </div>
 
           <button
+            onClick={toggleTheme}
+            className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900/40 transition-all cursor-pointer"
+          >
+            {theme === "dark" ? (
+              <>
+                <Sun className="w-4 h-4 text-amber-400" />
+                <span>Light Theme</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-indigo-400" />
+                <span>Dark Theme</span>
+              </>
+            )}
+          </button>
+
+          <button
             onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-rose-455 hover:text-rose-350 hover:bg-rose-950/20 transition-all cursor-pointer"
           >
@@ -632,23 +691,37 @@ export default function ClientDashboard() {
         
         {/* Header bar and sync */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-slate-900 gap-4">
-          <div>
-             <h1 className="text-lg sm:text-xl font-bold font-display text-white uppercase tracking-tight">
-              {activeTab === "dashboard" && "SME SALES OVERVIEW"}
-              {activeTab === "leads" && "LEAD ACQUISITIONS PIPELINES"}
-              {activeTab === "followups" && "AUTOMATED SALES FOLLOW-UP CONSOLE"}
-              {activeTab === "ai-insights" && "AI DECISION ENGINE & INSIGHTS"}
-              {activeTab === "profile" && "CONNECTED COMPANY SPECIFICATIONS"}
-              {activeTab === "settings" && "WORKSPACE LOGINS & CONTACT DETAILS"}
-            </h1>
-            <p className="text-[10px] text-slate-450 italic mt-0.5">
-              {activeTab === "dashboard" && "Incoming messages activity, automated dialogues resolved, & subscription status."}
-              {activeTab === "leads" && "Your target client contacts, chat state logs & acquisition parameters."}
-              {activeTab === "followups" && "Track inactivity trigger rules, dynamic AI reminders histories, and restore missed revenues."}
-              {activeTab === "ai-insights" && "Evaluate high-intent scoring, response strategies, conversion analytics, and revenue optimizations on WhatsApp."}
-              {activeTab === "profile" && "Verify subscription billing lines, price points, and active business quotas."}
-              {activeTab === "settings" && "Configure contact emails, physical coordinates, and change account passwords."}
-            </p>
+          <div className="flex items-center space-x-3.5">
+            {isSidebarCollapsed && (
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="hidden md:flex p-2 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-indigo-400 hover:text-white transition-all cursor-pointer items-center space-x-1.5"
+                title="Expand sidebar"
+              >
+                <ChevronRight className="w-4 h-4 animate-pulse" />
+                <span className="text-[10px] uppercase font-bold tracking-wider pr-1">Show Sidebar</span>
+              </button>
+            )}
+            <div>
+               <h1 className="text-lg sm:text-xl font-bold font-display text-white uppercase tracking-tight">
+                {activeTab === "dashboard" && "SME SALES OVERVIEW"}
+                {activeTab === "leads" && "LEAD ACQUISITIONS PIPELINES"}
+                {activeTab === "followups" && "AUTOMATED SALES FOLLOW-UP CONSOLE"}
+                {activeTab === "ai-insights" && "AI DECISION ENGINE & INSIGHTS"}
+                {activeTab === "quotation-templates" && "QUOTATION TEMPLATE MODULE"}
+                {activeTab === "profile" && "CONNECTED COMPANY SPECIFICATIONS"}
+                {activeTab === "settings" && "WORKSPACE LOGINS & CONTACT DETAILS"}
+              </h1>
+              <p className="text-[10px] text-slate-450 italic mt-0.5">
+                {activeTab === "dashboard" && "Incoming messages activity, automated dialogues resolved, & subscription status."}
+                {activeTab === "leads" && "Your target client contacts, chat state logs & acquisition parameters."}
+                {activeTab === "followups" && "Track inactivity trigger rules, dynamic AI reminders histories, and restore missed revenues."}
+                {activeTab === "ai-insights" && "Evaluate high-intent scoring, response strategies, conversion analytics, and revenue optimizations on WhatsApp."}
+                {activeTab === "quotation-templates" && "Design quotation branding, banners, logo, and watermarks for business contracts."}
+                {activeTab === "profile" && "Verify subscription billing lines, price points, and active business quotas."}
+                {activeTab === "settings" && "Configure contact emails, physical coordinates, and change account passwords."}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
@@ -805,6 +878,11 @@ export default function ClientDashboard() {
               <AiInsightsDashboard />
             )}
 
+            {/* TAB 3.7: QUOTATION BRANDS AND TEMPLATES DESIGNER */}
+            {activeTab === "quotation-templates" && (
+              <QuotationTemplatesPanel />
+            )}
+
             {/* TAB 4: COMPANY PROFILE VIEWER (NEW PHASE 2 REQUIREMENT!) */}
             {activeTab === "profile" && (
               <div className="space-y-6">
@@ -860,7 +938,7 @@ export default function ClientDashboard() {
                         <span className="font-bold text-[11px] block uppercase text-white">Full Plan Features:</span>
                         <div className="flex flex-wrap gap-2.5 pt-1">
                           {planDetails.features?.split(",").map((feat: string, i: number) => (
-                            <span key={i} className="px-2 py-0.5 rounded bg-slate-950/50 border border-slate-900 text-[9.5px]">
+                            <span key={i} className="px-2 py-0.5 rounded bg-indigo-950/40 border border-indigo-950/30 text-[9.5px] font-medium">
                               ✓ {feat.trim()}
                             </span>
                           ))}
@@ -1334,9 +1412,23 @@ export default function ClientDashboard() {
                         >
                           {isTestRunning ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" /> : "Verify Handshake"}
                         </button>
-                        <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-[#02050b] border border-slate-900 h-[42px]">
-                          <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500">Node Status</span>
-                          <span className={`text-[11px] font-bold truncate px-2.5 rounded text-white ${waConnectorStatus === "CONNECTED" ? "bg-emerald-600" : waConnectorStatus === "DISCONNECTED" ? "bg-red-900" : "bg-yellow-900"}`}>
+                        <div className="flex flex-col items-center justify-center py-1 px-2 rounded-lg bg-[#02050b] border border-slate-900 h-[42px]">
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 mb-0.5">Node Status</span>
+                          <span className={`inline-flex items-center justify-center text-[10px] font-bold px-3 py-1 rounded-full whitespace-nowrap leading-none select-none ${
+                            theme === "light"
+                              ? (waConnectorStatus === "CONNECTED"
+                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                  : waConnectorStatus === "DISCONNECTED"
+                                    ? "bg-red-100 text-red-800 border border-red-200"
+                                    : "bg-yellow-100 text-yellow-800 border border-yellow-200")
+                              : `text-white ${
+                                  waConnectorStatus === "CONNECTED"
+                                    ? "bg-emerald-600 text-white"
+                                    : waConnectorStatus === "DISCONNECTED"
+                                      ? "bg-red-900 text-white"
+                                      : "bg-yellow-900 text-white"
+                                }`
+                          }`}>
                             {waConnectorStatus}
                           </span>
                         </div>

@@ -3617,7 +3617,7 @@ router.get("/leads/:leadId/decision", authenticateToken, async (req: Authenticat
 });
 
 // Aggregated/Strategic dashboard statistics for the AI Decision layer
-router.get("/ai-insights", authenticateToken, async (req: AuthenticatedRequest, res): Promise<any> => {
+router.get("/decision-insights", authenticateToken, async (req: AuthenticatedRequest, res): Promise<any> => {
   try {
     let client = await prisma.client.findFirst({
       where: req.user?.role === "CLIENT" ? { userId: req.user.id } : {}
@@ -3768,6 +3768,296 @@ router.get("/ai-insights", authenticateToken, async (req: AuthenticatedRequest, 
   } catch (error) {
     console.error("AI Insights API fetch error:", error);
     res.status(500).json({ error: "Failed to load strategic AI insights." });
+  }
+});
+
+// ==========================================
+// QUOTATION BRAND SETTINGS & TEMPLATES API
+// ==========================================
+
+import { calculateTotals } from "../services/quotationEngine.js";
+
+async function getActiveClientId(req: AuthenticatedRequest): Promise<string | null> {
+  if (req.user?.role === "CLIENT") {
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user.id }
+    });
+    return client ? client.id : null;
+  }
+  return (req.query.clientId as string) || (req.body.clientId as string) || null;
+}
+
+router.get("/quotation-templates", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const clientId = await getActiveClientId(req);
+    if (!clientId) {
+      return res.status(401).json({ error: "Client context not found." });
+    }
+
+    let templates = await prisma.quotationTemplate.findMany({
+      where: { clientId }
+    });
+
+    if (templates.length === 0) {
+      console.log(`[Templates Seeding] Seeding default templates for Client: ${clientId}`);
+      const client = await prisma.client.findUnique({ where: { id: clientId } });
+      const companyName = client?.companyName || "My Business Ltd";
+
+      // Seed standard ones if empty
+      await prisma.quotationTemplate.createMany({
+        data: [
+          { clientId, name: "Standard Quotation", companyName, watermarkOpacity: 15 },
+          { clientId, name: "Distributor Quotation", companyName, watermarkOpacity: 10 },
+          { clientId, name: "Export Quotation", companyName, watermarkOpacity: 15 },
+          { clientId, name: "Corporate Quotation", companyName, watermarkOpacity: 20 },
+          { clientId, name: "VIP Customer Quotation", companyName, watermarkOpacity: 15 }
+        ]
+      });
+
+      templates = await prisma.quotationTemplate.findMany({
+        where: { clientId }
+      });
+    }
+
+    res.json(templates);
+  } catch (error) {
+    console.error("Failed to load templates:", error);
+    res.status(500).json({ error: "Failed to load templates" });
+  }
+});
+
+router.post("/quotation-templates", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const clientId = await getActiveClientId(req);
+    if (!clientId) return res.status(401).json({ error: "Access denied." });
+
+    const { id, name, companyName, logo, headerBanner, footerBanner, watermark, watermarkOpacity } = req.body;
+
+    if (id) {
+      const updated = await prisma.quotationTemplate.update({
+        where: { id },
+        data: {
+          name,
+          companyName: companyName || "My Business Ltd",
+          logo: logo || null,
+          headerBanner: headerBanner || null,
+          footerBanner: footerBanner || null,
+          watermark: watermark || null,
+          watermarkOpacity: Number(watermarkOpacity) !== undefined ? Number(watermarkOpacity) : 15
+        }
+      });
+      return res.json(updated);
+    } else {
+      const created = await prisma.quotationTemplate.create({
+        data: {
+          clientId,
+          name,
+          companyName: companyName || "My Business Ltd",
+          logo: logo || null,
+          headerBanner: headerBanner || null,
+          footerBanner: footerBanner || null,
+          watermark: watermark || null,
+          watermarkOpacity: Number(watermarkOpacity) !== undefined ? Number(watermarkOpacity) : 15
+        }
+      });
+      return res.json(created);
+    }
+  } catch (err) {
+    console.error("Save template error:", err);
+    res.status(500).json({ error: "Failed to save template" });
+  }
+});
+
+router.delete("/quotation-templates/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const templateId = req.params.id;
+    
+    // Safety check: nullify any quotation's templateId referencing this template first
+    await prisma.quotation.updateMany({
+      where: { templateId: templateId },
+      data: { templateId: null }
+    });
+
+    const deleted = await prisma.quotationTemplate.delete({
+      where: { id: templateId }
+    });
+    res.json(deleted);
+  } catch (err: any) {
+    console.error("Delete template error:", err);
+    res.status(500).json({ error: err?.message || "Failed to delete template" });
+  }
+});
+
+// ==========================================
+// LEAD QUOTATIONS CRUD API
+// ==========================================
+
+router.get("/leads/:leadId/quotations", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const quotations = await prisma.quotation.findMany({
+      where: { leadId: req.params.leadId },
+      include: { template: true },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(quotations);
+  } catch (err) {
+    console.error("Fetch quotations failed:", err);
+    res.status(500).json({ error: "Failed to load quotations" });
+  }
+});
+
+router.post("/leads/:leadId/quotations", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { leadId } = req.params;
+    const clientId = await getActiveClientId(req);
+    if (!clientId) return res.status(401).json({ error: "Access denied." });
+
+    const {
+      templateId,
+      quotationNumber,
+      status,
+      products,
+      deliveryTerms,
+      paymentTerms,
+      validity,
+      additionalNotes
+    } = req.body;
+
+    const parsedProducts = Array.isArray(products) ? products : (products ? JSON.parse(products) : []);
+    const totals = calculateTotals(parsedProducts);
+
+    const scheduledAt = status === "READY" ? new Date(Date.now() + 5 * 60 * 1000) : null;
+
+    const quotation = await prisma.quotation.create({
+      data: {
+        clientId,
+        leadId,
+        templateId: templateId || null,
+        quotationNumber: quotationNumber || `QT-${Date.now()}`,
+        status: status || "DRAFT",
+        products: JSON.stringify(parsedProducts),
+        subtotal: totals.subtotal,
+        discountPercent: parsedProducts?.[0]?.discount || 0,
+        discountAmount: totals.discountAmount,
+        gstPercent: parsedProducts?.[0]?.gst || 0,
+        gstAmount: totals.gstAmount,
+        taxPercent: parsedProducts?.[0]?.tax || 0,
+        taxAmount: totals.taxAmount,
+        deliveryCharges: totals.deliveryCharges,
+        grandTotal: totals.grandTotal,
+        deliveryTerms,
+        paymentTerms,
+        validity,
+        additionalNotes,
+        scheduledAt
+      }
+    });
+
+    // Create activity logs based on the user request flow
+    await prisma.leadActivity.create({
+      data: {
+        leadId,
+        activityType: "QUOTATION",
+        description: `Quotation Created: Proposal ${quotation.quotationNumber} saved as ${status}.`
+      }
+    });
+
+    if (status === "READY") {
+      await prisma.leadActivity.create({
+        data: {
+          leadId,
+          activityType: "QUOTATION",
+          description: `Quotation Marked Ready: AI Agent scheduled outbound delivery via standard channel.`
+        }
+      });
+    }
+
+    res.json(quotation);
+  } catch (err) {
+    console.error("Create quotation failed:", err);
+    res.status(500).json({ error: "Failed to create quotation" });
+  }
+});
+
+router.put("/quotations/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const {
+      templateId,
+      quotationNumber,
+      status,
+      products,
+      deliveryTerms,
+      paymentTerms,
+      validity,
+      additionalNotes
+    } = req.body;
+
+    const oldQuote = await prisma.quotation.findUnique({ where: { id } });
+    if (!oldQuote) return res.status(404).json({ error: "Quotation not found" });
+
+    const parsedProducts = Array.isArray(products) ? products : (products ? JSON.parse(products) : JSON.parse(oldQuote.products));
+    const totals = calculateTotals(parsedProducts);
+
+    // If changing layout style or status to READY
+    const becomesReady = status === "READY" && oldQuote.status !== "READY";
+    const scheduledAt = becomesReady ? new Date(Date.now() + 5 * 60 * 1000) : oldQuote.scheduledAt;
+
+    const updated = await prisma.quotation.update({
+      where: { id },
+      data: {
+        templateId: templateId || null,
+        quotationNumber: quotationNumber || oldQuote.quotationNumber,
+        status: status || oldQuote.status,
+        products: JSON.stringify(parsedProducts),
+        subtotal: totals.subtotal,
+        discountAmount: totals.discountAmount,
+        gstAmount: totals.gstAmount,
+        taxAmount: totals.taxAmount,
+        deliveryCharges: totals.deliveryCharges,
+        grandTotal: totals.grandTotal,
+        deliveryTerms,
+        paymentTerms,
+        validity,
+        additionalNotes,
+        scheduledAt: status === "DRAFT" ? null : scheduledAt
+      }
+    });
+
+    await prisma.leadActivity.create({
+      data: {
+        leadId: updated.leadId,
+        activityType: "QUOTATION",
+        description: `Quotation Edited: Document ${updated.quotationNumber} revised. Status is ${status}.`
+      }
+    });
+
+    if (becomesReady) {
+      await prisma.leadActivity.create({
+        data: {
+          leadId: updated.leadId,
+          activityType: "QUOTATION",
+          description: `Quotation Marked Ready: AI Agent scheduled outbound delivery in +5 minutes.`
+        }
+      });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Update quotation failed:", err);
+    res.status(500).json({ error: "Failed to update quotation" });
+  }
+});
+
+router.delete("/quotations/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const deleted = await prisma.quotation.delete({
+      where: { id: req.params.id }
+    });
+    res.json(deleted);
+  } catch (err) {
+    console.error("Delete quotation failed:", err);
+    res.status(500).json({ error: "Failed to delete quotation" });
   }
 });
 

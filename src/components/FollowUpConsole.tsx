@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../services/api";
 import { FollowUp, Lead } from "../types";
+import { useTheme } from "../context/ThemeContext";
 import { 
   Calendar, 
   Clock, 
@@ -25,6 +26,9 @@ import {
 } from "lucide-react";
 
 export default function FollowUpConsole() {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
+
   const [followups, setFollowups] = useState<FollowUp[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [dueStats, setDueStats] = useState<any>({
@@ -320,15 +324,19 @@ export default function FollowUpConsole() {
       {/* Overview stats layout */}
       <div id="followup-metrics-grid" className="grid grid-cols-2 md:grid-cols-5 gap-4">
         
-        <div className="bg-[#0b0f19] border border-slate-900 p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden">
+        <div className={`p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden ${
+          isLight 
+            ? "bg-[#F7F7FF] border border-slate-300 text-slate-800" 
+            : "bg-[#0b0f19] border border-slate-900 text-white"
+        }`}>
           <div className="flex justify-between items-center text-slate-500">
-            <span className="text-[10px] font-semibold tracking-wider font-display uppercase">Due Today</span>
-            <div className="p-1 bg-blue-950/40 text-blue-400 rounded-md">
+            <span className={`text-[10px] font-semibold tracking-wider font-display uppercase ${isLight ? "text-slate-650" : ""}`}>Due Today</span>
+            <div className={`p-1 rounded-md ${isLight ? "bg-blue-100 text-blue-700" : "bg-blue-950/40 text-blue-400"}`}>
               <Clock className="w-3.5 h-3.5" />
             </div>
           </div>
           <div>
-            <span className="text-2xl font-bold font-display text-white">{dueStats.dueToday?.length || 0}</span>
+            <span className={`text-2xl font-bold font-display ${isLight ? "text-blue-700" : "text-white"}`}>{dueStats.dueToday?.length || 0}</span>
             <span className="block text-[10px] text-slate-500 italic mt-0.5">Urgent touchpoints</span>
           </div>
           <div className="absolute right-0 bottom-0 translate-x-2 translate-y-2 opacity-5">
@@ -336,15 +344,19 @@ export default function FollowUpConsole() {
           </div>
         </div>
 
-        <div className="bg-[#0b0f19] border border-slate-900 p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden">
+        <div className={`p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden ${
+          isLight 
+            ? "bg-[#F7F7FF] border border-slate-300 text-slate-800" 
+            : "bg-[#0b0f19] border border-slate-900 text-white"
+        }`}>
           <div className="flex justify-between items-center text-slate-500">
-            <span className="text-[10px] font-semibold tracking-wider font-display uppercase">Overdue reminders</span>
-            <div className="p-1 bg-rose-955/30 text-rose-400 rounded-md">
+            <span className={`text-[10px] font-semibold tracking-wider font-display uppercase ${isLight ? "text-slate-650" : ""}`}>Overdue reminders</span>
+            <div className={`p-1 rounded-md ${isLight ? "bg-rose-100 text-rose-700" : "bg-rose-955/30 text-rose-400"}`}>
               <AlertCircle className="w-3.5 h-3.5" />
             </div>
           </div>
           <div>
-            <span className="text-2xl font-bold font-display text-rose-400">{dueStats.overdue?.length || 0}</span>
+            <span className={`text-2xl font-bold font-display ${isLight ? "text-rose-700" : "text-rose-400"}`}>{dueStats.overdue?.length || 0}</span>
             <span className="block text-[10px] text-slate-505 italic mt-0.5">Require immediate attention</span>
           </div>
           <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-5">
@@ -352,15 +364,19 @@ export default function FollowUpConsole() {
           </div>
         </div>
 
-        <div className="bg-[#0b0f19] border border-slate-900 p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden">
+        <div className={`p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden ${
+          isLight 
+            ? "bg-[#F7F7FF] border border-slate-300 text-slate-800" 
+            : "bg-[#0b0f19] border border-slate-900 text-white"
+        }`}>
           <div className="flex justify-between items-center text-slate-500">
-            <span className="text-[10px] font-semibold tracking-wider font-display uppercase">Replied leads</span>
-            <div className="p-1 bg-emerald-950/40 text-emerald-400 rounded-md">
+            <span className={`text-[10px] font-semibold tracking-wider font-display uppercase ${isLight ? "text-slate-650" : ""}`}>Replied leads</span>
+            <div className={`p-1 rounded-md ${isLight ? "bg-emerald-100 text-emerald-700" : "bg-emerald-950/40 text-emerald-400"}`}>
               <CheckCircle2 className="w-3.5 h-3.5" />
             </div>
           </div>
           <div>
-            <span className="text-2xl font-bold font-display text-emerald-400">{dueStats.repliedLeadsCount || 0}</span>
+            <span className={`text-2xl font-bold font-display ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>{dueStats.repliedLeadsCount || 0}</span>
             <span className="block text-[10px] text-slate-500 italic mt-0.5">Engaged & recovered</span>
           </div>
           <div className="absolute right-0 bottom-0 translate-x-2 translate-y-2 opacity-10">
@@ -368,15 +384,19 @@ export default function FollowUpConsole() {
           </div>
         </div>
 
-        <div className="bg-[#0b0f19] border border-slate-900 p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden">
+        <div className={`p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden ${
+          isLight 
+            ? "bg-[#F7F7FF] border border-slate-300 text-slate-800" 
+            : "bg-[#0b0f19] border border-slate-900 text-white"
+        }`}>
           <div className="flex justify-between items-center text-slate-500">
-            <span className="text-[10px] font-semibold tracking-wider font-display uppercase">Sent Messages</span>
-            <div className="p-1 bg-[#1a0f30] text-purple-400 rounded-md">
+            <span className={`text-[10px] font-semibold tracking-wider font-display uppercase ${isLight ? "text-slate-650" : ""}`}>Sent Messages</span>
+            <div className={`p-1 rounded-md ${isLight ? "bg-purple-100 text-purple-700" : "bg-[#1a0f30] text-purple-400"}`}>
               <Send className="w-3.5 h-3.5" />
             </div>
           </div>
           <div>
-            <span className="text-2xl font-bold font-display text-white">{dueStats.sentFollowups?.length || 0}</span>
+            <span className={`text-2xl font-bold font-display ${isLight ? "text-purple-700" : "text-white"}`}>{dueStats.sentFollowups?.length || 0}</span>
             <span className="block text-[10px] text-slate-500 italic mt-0.5">Dispatched automatically</span>
           </div>
           <div className="absolute right-0 bottom-0 translate-x-2 translate-y-2 opacity-5">
@@ -384,18 +404,22 @@ export default function FollowUpConsole() {
           </div>
         </div>
 
-        <div className="bg-rose-955/10 border border-rose-955/20 p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hiddencol-span-2 md:col-span-1">
+        <div className={`p-4 rounded-xl flex flex-col justify-between space-y-2 relative overflow-hidden col-span-2 md:col-span-1 ${
+          isLight 
+            ? "bg-[#F7F7FF] border border-rose-300 text-rose-900" 
+            : "bg-rose-955/10 border border-rose-955/20 text-white"
+        }`}>
           <div className="flex justify-between items-center text-slate-500">
-            <span className="text-[10px] font-semibold tracking-wider font-display uppercase text-rose-400">Escaped Value</span>
-            <div className="p-1 bg-rose-900/30 text-rose-400 rounded-md">
+            <span className={`text-[10px] font-semibold tracking-wider font-display uppercase ${isLight ? "text-rose-700" : "text-rose-400"}`}>Escaped Value</span>
+            <div className={`p-1 rounded-md ${isLight ? "bg-rose-100 text-rose-700" : "bg-rose-900/30 text-rose-400"}`}>
               <TrendingUp className="w-3.5 h-3.5" />
             </div>
           </div>
           <div>
-            <span className="text-2xl font-bold font-display text-rose-350">
+            <span className={`text-2xl font-bold font-display ${isLight ? "text-rose-700" : "text-rose-350"}`}>
               {dueStats.missedOpportunities?.length || 0} Leads
             </span>
-            <span className="block text-[9px] text-rose-400 italic mt-0.5">At Risk of Slippage</span>
+            <span className={`block text-[9px] italic mt-0.5 ${isLight ? "text-rose-600" : "text-rose-400"}`}>At Risk of Slippage</span>
           </div>
           <div className="absolute right-0 bottom-0 translate-x-2 translate-y-2 opacity-5">
             <TrendingUp className="w-24 h-24 text-rose-500" />

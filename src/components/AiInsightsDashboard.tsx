@@ -61,7 +61,7 @@ export default function AiInsightsDashboard() {
     setIsLoading(true);
     setErrorMsg("");
     try {
-      const response = await api.get<InsightsData>("/ai-insights");
+      const response = await api.get<InsightsData>("/decision-insights");
       setData(response || null);
     } catch (err: any) {
       console.error("Failed to load AI Insights:", err);
