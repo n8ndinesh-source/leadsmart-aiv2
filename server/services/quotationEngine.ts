@@ -1,4 +1,5 @@
 import { prisma } from "../db.js";
+import { generateQuotationPdf } from "./pdfGenerator.js";
 
 interface QuotationProduct {
   productName: string;
@@ -95,14 +96,30 @@ export async function processScheduledQuotationDeliveries() {
       const quoteNum = quote.quotationNumber;
       const amountStr = `$${quote.grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-      // Compute application URL dynamically for client sharing links
-      const appUrl = (process.env.APP_URL || "https://leadsmart-automation.run.app").replace(/\/$/, "");
-      const viewUrl = `${appUrl}/quotation-document.html?id=${quote.id}`;
+      console.log(`[Quotation Delivery Automation] Automating delivery for quote ${quoteNum} to ${lead.name}`);
 
-      // Generate the message template as specified in instructions
+      let pdfBuffer: Buffer | null = null;
+      let base64Pdf: string | null = null;
+      try {
+        console.log(`[Quotation Engine] Building vector brand PDF for ${quoteNum}...`);
+        pdfBuffer = await generateQuotationPdf(quote, client, lead, template);
+        base64Pdf = pdfBuffer.toString("base64");
+      } catch (pdfBuildErr) {
+        console.error(`[Quotation Engine] Failed to build PDF for ${quoteNum}:`, pdfBuildErr);
+      }
+
+      // Store PDF Base64 string directly in database Quotation table under the newly added pdfBase64 column
+      if (base64Pdf) {
+        await prisma.quotation.update({
+          where: { id: quote.id },
+          data: { pdfBase64: base64Pdf }
+        });
+      }
+
+      // Generate the message template
       const outboundMessage = `Hi ${leadName} 👋
 
-Your quotation is ready.
+Your official quotation is ready.
 
 Quotation Number:
 ${quoteNum}
@@ -110,22 +127,17 @@ ${quoteNum}
 Total Amount:
 ${amountStr}
 
-Please review your official branded quotation document and print / save as PDF here:
-${viewUrl}
-
-Let us know if you have any questions!
+Please find the attached PDF quotation. Let us know if you have any questions!
 
 Regards,
 ${companyName}`;
-
-      console.log(`[Quotation Delivery Automation] Automating delivery for quote ${quoteNum} to ${lead.name}`);
 
       // 1. Send via mock integration/real graph API if configured
       const recipientNumber = lead.whatsappNumber || lead.phoneNumber;
       if (client.whatsappToken && client.whatsappPhoneId && recipientNumber) {
         try {
           const cleanPhone = recipientNumber.replace(/\D/g, "");
-          // Send Text message with download URL
+          // Send Text message
           await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
             method: "POST",
             headers: {
@@ -141,25 +153,51 @@ ${companyName}`;
             })
           });
 
-          // Also deliver document/media attachment to native PDF preview
-          await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${client.whatsappToken}`
-            },
-            body: JSON.stringify({
-              messaging_product: "whatsapp",
-              recipient_type: "individual",
-              to: cleanPhone,
-              type: "document",
-              document: {
-                link: viewUrl,
-                filename: `Quotation_${quoteNum}.pdf`,
-                caption: `Official Quotation ${quoteNum} from ${companyName}`
-              }
-            })
-          });
+          // Upload PDF buffer directly to Meta's media endpoint as multipart
+          if (pdfBuffer) {
+            const formData = new FormData();
+            formData.append("messaging_product", "whatsapp");
+            const pdfBlob = new Blob([pdfBuffer], { type: "application/pdf" });
+            formData.append("file", pdfBlob, `Quotation_${quoteNum}.pdf`);
+
+            console.log(`[Quotation Delivery API] Uploading PDF buffer directly to Meta Graph API for ${quoteNum}...`);
+            const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/media`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${client.whatsappToken}`
+              },
+              body: formData
+            });
+
+            if (uploadRes.ok) {
+              const uploadJson = await uploadRes.json() as any;
+              const mediaId = uploadJson.id;
+              console.log(`[Quotation Delivery API] Upload successful! Meta media_id: ${mediaId}. Sending Document attachment...`);
+
+              // Send Document message using mediaId
+              await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${client.whatsappToken}`
+                },
+                body: JSON.stringify({
+                  messaging_product: "whatsapp",
+                  recipient_type: "individual",
+                  to: cleanPhone,
+                  type: "document",
+                  document: {
+                    id: mediaId,
+                    filename: `Quotation_${quoteNum}.pdf`,
+                    caption: `Official Quotation ${quoteNum} from ${companyName}`
+                  }
+                })
+              });
+            } else {
+              const errText = await uploadRes.text();
+              console.error(`[Quotation Delivery API] Meta upload failed. Status: ${uploadRes.status}, Response: ${errText}`);
+            }
+          }
         } catch (metaErr) {
           console.error(`[Quotation Delivery API] Meta Graph API delivery failed for ${quoteNum}:`, metaErr);
         }
@@ -170,7 +208,7 @@ ${companyName}`;
         data: {
           leadId: lead.id,
           direction: "OUT",
-          content: `${outboundMessage}\n\n[Attachment: PDF Link: ${viewUrl}]`,
+          content: `${outboundMessage}\n\n[Attachment: PDF Native Document Quotation_${quoteNum}.pdf]`,
           timestamp: new Date()
         }
       });
