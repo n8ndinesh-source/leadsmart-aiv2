@@ -65,7 +65,10 @@ function numberToEnglishWords(amount: number, currencyCode: string): string {
 export function generateQuotationPdf(quotation: any, client: any, lead: any, template: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: "A4", margin: 40 });
+      const doc = new PDFDocument({ 
+        size: "A4", 
+        margins: { top: 40, bottom: 5, left: 40, right: 40 } 
+      });
       const chunks: Buffer[] = [];
 
       doc.on("data", (chunk) => chunks.push(chunk));
@@ -76,33 +79,117 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
       const primaryColor = "#0C353A";
       const goldAccent = "#E2A326";
 
-      // 1. Top Graphic Banner Header
-      doc.rect(0, 0, 595.28, 90).fill(primaryColor);
-      doc.rect(0, 90, 595.28, 8).fill(goldAccent);
+      // BACKGROUND WATERMARK (Behind items and text layers)
+      doc.save();
+      const watermarkOpacity = template?.watermarkOpacity !== undefined ? template.watermarkOpacity : 15;
+      doc.fillOpacity(watermarkOpacity / 300); // Elegant soft opacity for paper print
+      
+      doc.translate(187.64, 310.94);
+      doc.scale(2.2);
 
-      // Logo/Header Text
-      doc.fillColor("#FFFFFF").fontSize(20).font("Helvetica-Bold").text(
+      if (template?.watermark) {
+        try {
+          doc.image(template.watermark, 0, 0, { width: 100, height: 100, align: "center", valign: "center" });
+        } catch (imgErr) {
+          doc.path("M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15").fill(goldAccent);
+          doc.path("M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15").fill(primaryColor);
+        }
+      } else {
+        doc.path("M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15").fill(goldAccent);
+        doc.path("M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15").fill(primaryColor);
+      }
+      doc.restore();
+
+      // 1. Top Graphic Banner Header (Diagonal Geometric Art matched to HTML theme)
+      doc.moveTo(0, 0)
+         .lineTo(595.28, 0)
+         .lineTo(595.28, 65)
+         .lineTo(430, 95)
+         .lineTo(220, 70)
+         .lineTo(0, 80)
+         .closePath()
+         .fill(primaryColor);
+
+      // Gold accent decorative diagonal ribbon layer
+      doc.moveTo(0, 80)
+         .lineTo(220, 70)
+         .lineTo(430, 95)
+         .lineTo(595.28, 65)
+         .lineTo(595.28, 80)
+         .lineTo(430, 110)
+         .lineTo(220, 85)
+         .lineTo(0, 95)
+         .closePath()
+         .fill(goldAccent);
+
+      // Translucent white vector highlights
+      doc.save();
+      doc.fillOpacity(0.15);
+      doc.moveTo(120, 0)
+         .lineTo(180, 30)
+         .lineTo(220, 0)
+         .closePath()
+         .fill("#FFFFFF");
+      doc.restore();
+
+      doc.save();
+      doc.fillOpacity(0.10);
+      doc.moveTo(350, 0)
+         .lineTo(390, 20)
+         .lineTo(440, 0)
+         .closePath()
+         .fill("#FFFFFF");
+      doc.restore();
+
+      // Circular Logo Badge / Icon bounding box
+      doc.circle(64, 92, 24).fill("#FFFFFF");
+      let logoExposed = false;
+      if (template?.logo) {
+        try {
+          doc.save();
+          doc.circle(64, 92, 22).clip();
+          doc.image(template.logo, 42, 70, { width: 44, height: 44 });
+          doc.restore();
+          logoExposed = true;
+        } catch (err) {
+          console.warn("Could not draw template logo in PDF, falling back to corporate vector:", err);
+        }
+      }
+      if (!logoExposed) {
+        doc.circle(64, 92, 20).fill("#0C353A");
+        doc.circle(64, 92, 17).strokeColor("#E2A326").lineWidth(1.5).stroke();
+        doc.circle(64, 92, 8).fill("#E2A326");
+      }
+
+      // Title header texts matching HTML style
+      doc.fillColor("#1E293B").fontSize(13.5).font("Helvetica-Bold").text(
         template?.companyName || client?.companyName || "EcoPek Ltd",
-        40,
-        32
+        100,
+        80
       );
-      doc.fillColor(goldAccent).fontSize(9).font("Helvetica-Bold").text(
+      doc.fillColor("#94A3B8").fontSize(8.5).font("Helvetica-Bold").text(
+        "Automated Sales Division",
+        100,
+        97
+      );
+
+      doc.fillColor("#94A3B8").fontSize(9).font("Helvetica-Bold").text(
         "OFFICIAL PROPOSAL",
         435,
-        40,
+        88,
         { align: "right", width: 120 }
       );
 
       // 2. Metadata Section inline headers
-      doc.fillColor("#334155").fontSize(9.5).font("Helvetica-Bold").text("QUOTATION NUMBER:", 40, 120);
-      doc.fillColor("#E11D48").fontSize(10).font("Courier-Bold").text(quotation.quotationNumber, 155, 119.5);
+      doc.fillColor("#475569").fontSize(9.5).font("Helvetica-Bold").text("QUOTATION NUMBER:", 40, 131);
+      doc.fillColor("#E11D48").fontSize(10).font("Courier-Bold").text(quotation.quotationNumber, 155, 130.5);
       
-      doc.fillColor("#334155").fontSize(9.5).font("Helvetica-Bold").text("Issue Date:", 350, 120);
+      doc.fillColor("#475569").fontSize(9.5).font("Helvetica-Bold").text("Issue Date:", 350, 131);
       const dateStr = quotation.createdAt ? new Date(quotation.createdAt).toLocaleDateString("en-GB") : "N/A";
-      doc.fillColor("#0F172A").fontSize(10).font("Courier-Bold").text(dateStr, 415, 119.5);
+      doc.fillColor("#0F172A").fontSize(10).font("Courier-Bold").text(dateStr, 415, 130.5);
 
       // 3. Side-by-Side Billing Blocks
-      const topOffset = 145;
+      const topOffset = 153;
       const boxHeight = 85;
       const boxWidth = 242;
 
@@ -133,7 +220,7 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
       doc.fillColor("#64748B").fontSize(8).font("Helvetica-Bold").text("Country of Supply: ", 40, supplyTop);
       doc.fillColor("#0F172A").fontSize(8).font("Helvetica-Bold").text(client?.country || "India", 125, supplyTop);
       doc.fillColor("#64748B").fontSize(8).font("Helvetica-Bold").text("Place of Supply (GST): ", 313, supplyTop);
-      doc.fillColor("#0F172A").fontSize(8).font("Helvetica-Bold").text((client?.state || "Maharashtra") + " (27)", 415, supplyTop);
+      doc.fillColor("#0F172A").fontSize(8).font("Helvetica-Bold").text((client?.state || "Maharashtra") + " (" + (client?.country === 'India' ? '27' : 'INT') + ")", 415, supplyTop);
 
       // 5. Items Grid Table
       const tableTop = supplyTop + 18;
@@ -271,19 +358,38 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
       calcY += 9;
       doc.fillColor("#0F172A").fontSize(7.5).font("Helvetica-Bold").text(totalWords.toUpperCase(), rightXLabel, calcY, { width: boxWidth, lineGap: 1.5 });
 
-      // 7. Footer Contact Bar & Double Ribbon
-      const footerY = 788;
+      // 7. Footer Contact Bar & Double Ribbon diagonal geometric paths
+      const footerY = 770;
       doc.lineWidth(0.5).strokeColor("#E2E8F0").moveTo(40, footerY).lineTo(555, footerY).stroke();
 
       const brandLower = (template?.companyName || client?.companyName || "").toLowerCase().replace(/\s+/g, "");
       doc.fillColor("#64748B").fontSize(7).font("Helvetica-Bold");
-      doc.text(`HQ: www.${brandLower || "leadsmartecommerce"}.com`, 40, footerY + 8);
-      doc.text(`Mob: ${client?.phone || "+91 99999 99999"}`, 240, footerY + 8, { align: "center", width: 115 });
-      doc.text(`Email: sales@${brandLower || "leadsmart"}.com`, 400, footerY + 8, { align: "right", width: 155 });
+      doc.text(`HQ: www.${brandLower || "leadsmartecommerce"}.com`, 40, footerY + 8, { lineBreak: false });
+      doc.text(`Mob: ${client?.phone || "+91 99999 99999"}`, 240, footerY + 8, { align: "center", width: 115, lineBreak: false });
+      doc.text(`Email: sales@${brandLower || "leadsmart"}.com`, 400, footerY + 8, { align: "right", width: 155, lineBreak: false });
 
-      // Edge double colored ribbons at the bottom limit
-      doc.rect(0, 810, 595.28, 4).fill(goldAccent);
-      doc.rect(0, 814, 595.28, 28).fill(primaryColor);
+      // Geometrical layered diagonal ribbons matching HTML footer
+      const ribbonTop = 793.89;
+
+      // Gold diagonal ribbon path matching d="M0 15 L180 8 L390 22 L595 5 V20 H0 Z"
+      doc.moveTo(0, ribbonTop + 15)
+         .lineTo(180, ribbonTop + 8)
+         .lineTo(390, ribbonTop + 22)
+         .lineTo(595.28, ribbonTop + 5)
+         .lineTo(595.28, ribbonTop + 20)
+         .lineTo(0, ribbonTop + 20)
+         .closePath()
+         .fill(goldAccent);
+
+      // Dark green diagonal ribbon path matching d="M0 20 L180 13 L390 27 L595 10 V48 H0 Z"
+      doc.moveTo(0, ribbonTop + 20)
+         .lineTo(180, ribbonTop + 13)
+         .lineTo(390, ribbonTop + 27)
+         .lineTo(595.28, ribbonTop + 10)
+         .lineTo(595.28, 841.89)
+         .lineTo(0, 841.89)
+         .closePath()
+         .fill(primaryColor);
 
       // Finalize the PDF kits pipeline stream
       doc.end();
