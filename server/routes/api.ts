@@ -4061,5 +4061,44 @@ router.delete("/quotations/:id", authenticateToken, async (req: AuthenticatedReq
   }
 });
 
+// GET /api/public/quotations/:id - Public metadata endpoint for printable branded quotations
+router.get("/public/quotations/:id", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const quotation = await prisma.quotation.findUnique({
+      where: { id }
+    });
+
+    if (!quotation) {
+      return res.status(404).json({ error: "Quotation not found." });
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: quotation.leadId }
+    });
+
+    const client = await prisma.client.findUnique({
+      where: { id: quotation.clientId }
+    });
+
+    let template = null;
+    if (quotation.templateId) {
+      template = await prisma.quotationTemplate.findUnique({
+        where: { id: quotation.templateId }
+      });
+    }
+
+    res.json({
+      quotation,
+      lead,
+      client,
+      template
+    });
+  } catch (err) {
+    console.error("Failed to read public quotation detailed information:", err);
+    res.status(500).json({ error: "Failed to retrieve public quotation info." });
+  }
+});
+
 export default router;
 

@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Official Price Quotation Document</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts - Inter & Space Grotesk -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+            playfair: ['Playfair Display', 'serif'],
+            mono: ['Fira Code', 'monospace'],
+          },
+          colors: {
+            brand: {
+              gold: '#e2a326',
+              teal: '#0a3a40',
+              purple: '#6b3fc5',
+              lavenderBg: '#f0eefc',
+              lavenderText: '#6c5ce7'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Print styling */
+    @media print {
+      body {
+        background-color: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      #print-area {
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        min-height: auto !important;
+        border-radius: 0 !important;
+      }
+    }
+
+    /* Watermark styling */
+    .watermark-bg {
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 50% auto;
+    }
+  </style>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-[#0b1120] text-slate-150 min-h-screen font-sans antialiased overflow-x-hidden pb-12">
+
+  <!-- Sticky Actions Panel (no-print) -->
+  <div class="no-print bg-[#070c19]/90 border-b border-slate-800 backdrop-blur sticky top-0 z-50 py-3.5 px-4 shadow-xl">
+    <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-indigo-500/15 rounded-xl border border-indigo-500/30">
+          <i data-lucide="file-check" class="w-5 h-5 text-indigo-400"></i>
+        </div>
+        <div>
+          <span class="text-[9px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">Client Portal</span>
+          <h1 class="text-sm font-bold font-display text-white" id="title-text">Secure Quotation Document</h1>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-2.5">
+        <button 
+          type="button"
+          onclick="window.print()"
+          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center space-x-1.5 cursor-pointer"
+        >
+          <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+          <span>Download / Print PDF</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Wrapper -->
+  <main class="max-w-3xl mx-auto px-4 pt-6 select-none">
+    
+    <!-- Loader Screen -->
+    <div id="loader-view" class="py-24 text-center">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent mb-4"></div>
+      <p class="text-slate-450 font-medium text-xs">Assembling your branded price quote...</p>
+    </div>
+
+    <!-- Error View -->
+    <div id="error-view" class="hidden py-16 text-center max-w-md mx-auto">
+      <div class="p-3 bg-red-500/10 rounded-2xl border border-red-500/20 inline-block mb-4">
+        <i data-lucide="alert-triangle" class="w-10 h-10 text-red-500"></i>
+      </div>
+      <h2 class="text-lg font-bold font-display text-white tracking-tight mb-2">Failed to load quotation</h2>
+      <p class="text-sm text-slate-400" id="error-msg">This quotation link is invalid, has expired, or cannot be queried by the secure delivery server.</p>
+    </div>
+
+    <!-- Printable Quotation Container (The Portrait Sheet Display) -->
+    <div 
+      id="print-area" 
+      class="hidden bg-white text-slate-800 font-sans shadow-2xl rounded-2xl relative overflow-hidden flex flex-col justify-between" 
+      style="min-height: 842px; width: 100%; max-width: 595px; margin: 0 auto;"
+    >
+      
+      <!-- Watermark Background Container overlay -->
+      <div 
+        id="watermark-overlay"
+        class="absolute inset-0 pointer-events-none flex items-center justify-center z-0 transition-opacity"
+        style="opacity: 0.15;"
+      >
+        <!-- Injected via JS -->
+      </div>
+
+      <!-- Header Banner / Layout Graphic -->
+      <div class="relative w-full z-10" id="header-container">
+        <!-- Injected via JS -->
+      </div>
+
+      <!-- Main Printable Content area -->
+      <div class="px-6 flex-1 flex flex-col justify-between pt-1 pb-3 relative z-10">
+        
+        <!-- Metadata indicators header -->
+        <div class="flex items-center justify-between text-[11px] border-b border-slate-150 pb-2">
+          <div>
+            <span class="font-bold text-slate-700 font-sans">QUOTATION NUMBER:</span>
+            <span class="font-bold text-rose-600 ml-1.5 font-mono" id="label-quote-num">QT-2026-X</span>
+          </div>
+          <div>
+            <span class="font-bold text-slate-700 font-sans">Issue Date:</span>
+            <span class="font-bold text-slate-900 ml-1.5 font-mono" id="label-issue-date">N/A</span>
+          </div>
+        </div>
+
+        <!-- From & For side-by-side structures -->
+        <div class="grid grid-cols-2 gap-3.5 my-3">
+          <!-- From -->
+          <div class="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100/50">
+            <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest block mb-1">Quotation From</span>
+            <h4 class="text-[10px] font-bold text-slate-900 leading-tight" id="from-company-name">EcoPek Ltd</h4>
+            <p class="text-[8.5px] text-slate-600 mt-1 leading-relaxed font-mono" id="from-details">
+              Address details<br>
+              GSTIN: 27AAHCM9628G1Z3<br>
+              PAN: AAHCM9628G
+            </p>
+          </div>
+
+          <!-- Prepared For -->
+          <div class="bg-indigo-50/40 p-3.5 rounded-xl border border-indigo-100/30">
+            <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest block mb-1">Prepared For</span>
+            <h4 class="text-[10px] font-bold text-slate-900 leading-tight" id="to-lead-name">Customer Name</h4>
+            <p class="text-[8.5px] text-slate-600 mt-1 leading-relaxed font-mono" id="to-details">
+              Lead details<br>
+              GSTIN: N/A
+            </p>
+          </div>
+        </div>
+
+        <!-- Geography supply coordinates -->
+        <div class="flex items-center justify-between text-[9px] font-bold text-slate-500 px-0.5 mb-2.5">
+          <div>
+            <span>Country of Supply:</span>
+            <span class="text-slate-800 ml-1 font-mono" id="country-supply">India</span>
+          </div>
+          <div>
+            <span>Place of Supply (GST):</span>
+            <span class="text-slate-800 ml-1 font-mono" id="state-supply">Maharashtra (27)</span>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="overflow-hidden rounded-xl border border-slate-100 shadow-sm mb-4">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-indigo-700 text-white font-semibold text-[9px]">
+                <th class="py-2 px-2.5">Item Column</th>
+                <th class="py-2 px-1 text-center">GST %</th>
+                <th class="py-2 px-1 text-center">Qty</th>
+                <th class="py-2 px-1.5 text-right">Rate</th>
+                <th class="py-2 px-1.5 text-right">Amount</th>
+                <th class="py-2 px-1 text-right">CGST</th>
+                <th class="py-2 px-1 text-right">SGST</th>
+                <th class="py-2 px-2 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody id="items-tbody" class="text-[8.5px] divide-y divide-slate-100">
+              <!-- Injected dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Terms and Conditions vs Mathematical Totals block -->
+        <div class="flex justify-between items-start mt-2">
+          <!-- Conditions -->
+          <div class="w-[52%] space-y-2">
+            <span class="text-[9.5px] font-bold text-indigo-600 uppercase tracking-widest block">Terms and Conditions</span>
+            <ol class="text-[8px] text-slate-600 list-decimal list-inside leading-loose font-mono" id="tc-list">
+              <li>Applicable taxes will be extra.</li>
+              <li>Work will resume after advance payment.</li>
+              <li>Goods once sold will not be returned.</li>
+            </ol>
+            <div class="pt-2 text-[8px] font-medium leading-relaxed bg-slate-50/70 p-2.5 rounded-xl border border-slate-100 text-slate-500">
+              <strong class="text-slate-750 uppercase text-[7.5px] block">Corporate Supply & Delivery Clause:</strong>
+              <span id="delivery-notes">Standard delivery within 7 working days.</span>
+            </div>
+          </div>
+
+          <!-- Mathematical values calculation -->
+          <div class="w-[45%] bg-slate-50/40 p-3 rounded-xl border border-slate-100 font-mono text-[9px] space-y-1.5 flex flex-col justify-end text-right">
+            <div class="flex justify-between text-slate-600">
+              <span>Amount:</span>
+              <span class="font-bold text-slate-800" id="val-subtotal">₹0.00</span>
+            </div>
+            
+            <div id="row-discount" class="hidden flex justify-between text-red-500 font-semibold">
+              <span id="label-discount">Corporate Disc (0%):</span>
+              <span id="val-discount">-₹0.00</span>
+            </div>
+
+            <div class="flex justify-between text-slate-600">
+              <span>CGST (Central):</span>
+              <span id="val-cgst">₹0.00</span>
+            </div>
+            
+            <div class="flex justify-between text-slate-600">
+              <span>SGST (State):</span>
+              <span id="val-sgst">₹0.00</span>
+            </div>
+
+            <div id="row-surcharge" class="hidden flex justify-between text-slate-600">
+              <span>Custom Surcharge:</span>
+              <span id="val-surcharge">₹0.00</span>
+            </div>
+
+            <div class="flex justify-between text-slate-600 pb-1 border-b border-slate-150">
+              <span>Delivery/Logistics:</span>
+              <span id="val-delivery">₹0.00</span>
+            </div>
+
+            <div class="flex justify-between text-slate-900 font-bold text-[10.5px] pt-1 border-b-2 border-double border-slate-900">
+              <span>Grand Total:</span>
+              <span class="font-sans text-xs text-indigo-950 font-bold" id="val-grandtotal">₹0.00</span>
+            </div>
+
+            <div class="text-[7.5px] text-slate-500 leading-tight italic text-right mt-2 pr-0.5 pt-1 border-t border-slate-100 font-mono whitespace-normal" id="words-container">
+              Total (in words):<br>
+              <span class="font-black text-slate-700 font-sans block mt-0.5 uppercase tracking-tighter" id="val-words">ZERO RUPEES ONLY</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer portion -->
+      <div class="relative w-full z-10 bottom-0 select-none mt-auto" id="footer-container">
+        <!-- Contact block -->
+        <div class="px-6 py-2.5 border-t border-slate-100 bg-white flex items-center justify-between text-[7.5px] text-slate-500 font-bold font-mono">
+          <span id="foot-hq">HQ: www.leadsmartecommerce.com</span>
+          <span id="foot-phone">Mob: +91 99999 99999</span>
+          <span id="foot-email">Email: sales@leadsmart.ai</span>
+        </div>
+
+        <!-- Bottom ribbon -->
+        <div id="footer-ribbon" class="w-full" style="height: 48px;">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    // Price formatter helper
+    function priceFormat(num) {
+      if (!num || isNaN(num)) return "0.00";
+      return Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Number to English Words Converter
+    function numberToEnglishWords(amount, currencyCode) {
+      if (amount === 0) return "Zero Rupees Only";
+      
+      const singleDigits = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+      const doubleDigits = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+      const tensDigits = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+      function convertGroup(num) {
+        let str = "";
+        if (num >= 100) {
+          str += singleDigits[Math.floor(num / 100)] + " Hundred ";
+          num %= 100;
+        }
+        if (num >= 10 && num < 20) {
+          str += doubleDigits[num - 10] + " ";
+        } else if (num >= 20 || num > 0) {
+          str += tensDigits[Math.floor(num / 10)] + " ";
+          str += singleDigits[num % 10] + " ";
+        }
+        return str;
+      }
+
+      let words = "";
+      let roundedAmount = Math.round(amount);
+      
+      if (currencyCode === 'INR' || currencyCode === '₹') {
+        let crores = Math.floor(roundedAmount / 10000000);
+        roundedAmount %= 10000000;
+        let lakhs = Math.floor(roundedAmount / 100000);
+        roundedAmount %= 100000;
+        let thousands = Math.floor(roundedAmount / 1000);
+        roundedAmount %= 1000;
+        
+        if (crores > 0) words += convertGroup(crores) + "Crore ";
+        if (lakhs > 0) words += convertGroup(lakhs) + "Lakh ";
+        if (thousands > 0) words += convertGroup(thousands) + "Thousand ";
+        if (roundedAmount > 0) words += convertGroup(roundedAmount);
+        
+        return words.trim() + " Rupees Only";
+      } else {
+        let millions = Math.floor(roundedAmount / 1000000);
+        roundedAmount %= 1000000;
+        let thousands = Math.floor(roundedAmount / 1000);
+        roundedAmount %= 1000;
+
+        if (millions > 0) words += convertGroup(millions) + "Million ";
+        if (thousands > 0) words += convertGroup(thousands) + "Thousand ";
+        if (roundedAmount > 0) words += convertGroup(roundedAmount);
+
+        const suffix = currencyCode === 'USD' || currencyCode === '$' ? "Dollars Only" : (currencyCode === 'EUR' || currencyCode === '€' ? "Euros Only" : "Units Only");
+        return words.trim() + " " + suffix;
+      }
+    }
+
+    // Auto load data on initialization
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Find quotation ID from query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const id = urlParams.get('id');
+
+      if (!id) {
+        document.getElementById('loader-view').classList.add('hidden');
+        const errView = document.getElementById('error-view');
+        errView.classList.remove('hidden');
+        document.getElementById('error-msg').textContent = "Quotation ID Parameter (link identity) missing from URL path coordinates.";
+        lucide.createIcons();
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/public/quotations/' + id);
+        
+        if (!response.ok) {
+          throw new Error("Server returned error response code: " + response.status);
+        }
+
+        const data = await response.json();
+        const { quotation, lead, client, template } = data;
+
+        if (!quotation) {
+          throw new Error("Retrieved JSON record is empty.");
+        }
+
+        // 1. Title alignment
+        document.getElementById('title-text').textContent = `Official Quote ${quotation.quotationNumber} - Branded Hub`;
+
+        // 2. Setup Watermark
+        const watermarkOverlay = document.getElementById('watermark-overlay');
+        const watermarkOpacity = template?.watermarkOpacity !== undefined ? template.watermarkOpacity : 15;
+        watermarkOverlay.style.opacity = watermarkOpacity / 100;
+        
+        if (template?.watermark) {
+          watermarkOverlay.innerHTML = `<img src="${template.watermark}" alt="Watermark logo" class="w-[60%] h-auto object-contain max-h-[50%]">`;
+        } else {
+          watermarkOverlay.innerHTML = `
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-[50%] h-auto opacity-40">
+              <path d="M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15" fill="#e2a326"/>
+              <path d="M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15" fill="#0c353a"/>
+            </svg>
+          `;
+        }
+
+        // 3. Setup Header Banner
+        const headerContainer = document.getElementById('header-container');
+        if (template?.headerBanner) {
+          headerContainer.innerHTML = `
+            <div class="w-full overflow-hidden" style="height: 110px;">
+              <img src="${template.headerBanner}" alt="Merchant Header Layout" class="w-full h-full object-cover">
+            </div>
+            
+            <div class="px-6 py-2.5 flex items-center justify-between -mt-3">
+              <div class="flex items-center space-x-3">
+                <div class="w-13 h-13 rounded-full bg-white shadow-md flex items-center justify-center p-1 relative z-20" style="transform: translateY(-6px); width: 52px; height: 52px;">
+                  <img src="${template.logo || 'data:image/svg+xml;utf8,<svg viewBox=%220%200%20100%20100%22%20xmlns=%22http://www.w3.org/2000/svg%22><circle%20cx=%2250%22%20cy=%2250%22%20r=%2240%22%20fill=%22%230c353a%22/></svg>'}" alt="Logo" class="w-[85%] h-[85%] rounded-full object-contain">
+                </div>
+                <div style="transform: translateY(-3px);">
+                  <h2 class="text-base font-black font-display tracking-tight text-slate-900 leading-none" id="header-vendor-title">${template.companyName || client.companyName}</h2>
+                  <span class="text-[9px] font-bold text-slate-400 tracking-wider">Automated Sales Division</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] font-extrabold text-slate-400 tracking-widest block">OFFICIAL PROPOSAL</span>
+              </div>
+            </div>
+          `;
+        } else {
+          headerContainer.innerHTML = `
+            <div class="w-full overflow-hidden bg-[#0c353a]" style="height: 110px;">
+              <svg viewBox="0 0 595 110" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                <path d="M0 0 H595 V65 L430 95 L220 70 L0 80 Z" fill="#0c353a"/>
+                <path d="M0 80 L220 70 L430 95 L595 65 V80 L430 110 L220 85 L0 95 Z" fill="#e2a326"/>
+                <path d="M120 0 L180 30 L220 0 Z" fill="#ffffff" fillOpacity="0.15" />
+                <path d="M350 0 L390 20 L440 0 Z" fill="#ffffff" fillOpacity="0.1" />
+              </svg>
+            </div>
+            
+            <div class="px-6 py-2.5 flex items-center justify-between -mt-3">
+              <div class="flex items-center space-x-3">
+                <div class="w-13 h-13 rounded-full bg-white shadow-md flex items-center justify-center p-1 relative z-20" style="transform: translateY(-6px); width: 52px; height: 52px;">
+                  <img src="${template?.logo || 'data:image/svg+xml;utf8,<svg viewBox=%220%200%20100%20100%22%20xmlns=%22http://www.w3.org/2000/svg%22><path%20d=%22M50%2015%20C30%2035,%2030%2065,%2050%2085%20C55%2075,%2055%2055,%2050%2045%20C45%2035,%2045%2025,%2050%2015%22%20fill=%22%23e2a326%22/><path%20d=%22M50%2015%20C65%2030,%2068%2055,%2056%2068%20C45%2050,%2048%2035,%2050%2015%22%20fill=%22%230c353a%22/></svg>'}" alt="Logo" class="w-[85%] h-[85%] rounded-full object-contain">
+                </div>
+                <div style="transform: translateY(-3px);">
+                  <h2 class="text-base font-black font-display tracking-tight text-slate-900 leading-none">${template?.companyName || client.companyName}</h2>
+                  <span class="text-[9px] font-bold text-slate-400 tracking-wider">Automated Sales Division</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] font-extrabold text-slate-400 tracking-widest block">OFFICIAL PROPOSAL</span>
+              </div>
+            </div>
+          `;
+        }
+
+        // 4. Setup metadata
+        document.getElementById('label-quote-num').textContent = quotation.quotationNumber;
+        
+        let dateStr = "N/A";
+        if (quotation.createdAt) {
+          const rawDate = new Date(quotation.createdAt);
+          const dd = String(rawDate.getDate()).padStart(2, '0');
+          const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
+          const yyyy = rawDate.getFullYear();
+          dateStr = `${dd}/${mm}/${yyyy}`;
+        }
+        document.getElementById('label-issue-date').textContent = dateStr;
+
+        // Determine currency symbol
+        let parsedProducts = [];
+        try {
+          parsedProducts = JSON.parse(quotation.products || "[]");
+        } catch (e) {
+          console.error("JSON parse products failed:", e);
+        }
+
+        // Detect currency (default to USD or check options)
+        const isInternational = client?.country && client?.country !== "India";
+        const curr = isInternational ? "$" : "₹";
+        const currencyCode = isInternational ? "USD" : "INR";
+
+        // From details binding
+        document.getElementById('from-company-name').textContent = template?.companyName || client.companyName;
+        document.getElementById('from-details').innerHTML = `
+          ${client.city || ''}, ${client.state || ''}, ${client.country || ''}<br>
+          GSTIN: ${template?.id ? '27AAHCM9628G1Z3' : 'N/A'}<br>
+          PAN: AAHCM9628G<br>
+          Phone: ${client.phone || 'N/A'}
+        `;
+
+        // To details binding
+        document.getElementById('to-lead-name').textContent = lead.name || "Customer Lead Client";
+        document.getElementById('to-details').innerHTML = `
+          ${lead.companyName || 'Corporate Client Location'}<br>
+          GSTIN: N/A<br>
+          Phone: ${lead.phoneNumber || lead.whatsappNumber || 'N/A'}
+        `;
+
+        document.getElementById('country-supply').textContent = client.country || 'India';
+        document.getElementById('state-supply').textContent = (client.state || 'Maharashtra') + " (" + (client.country === 'India' ? '27' : 'INT') + ")";
+
+        // Clear and render rows
+        const itemsTbody = document.getElementById('items-tbody');
+        itemsTbody.innerHTML = '';
+
+        let subtotalAccumulator = 0;
+        let cgstSum = 0;
+        let sgstSum = 0;
+        let customTaxSum = 0;
+
+        parsedProducts.forEach((item, index) => {
+          const qty = Number(item.quantity) || 0;
+          const price = Number(item.unitPrice || item.price || 0);
+          const itemAmount = qty * price;
+
+          const discPercent = Number(item.discount) || 0;
+          const discountVal = itemAmount * (discPercent / 100);
+          const afterDiscount = itemAmount - discountVal;
+
+          subtotalAccumulator += itemAmount;
+
+          const gstPercent = Number(item.gst) || 0;
+          const taxPercent = Number(item.tax) || 0;
+
+          // CGST + SGST splitting (standard Indian schema mapping)
+          const itemCgst = afterDiscount * ((gstPercent / 2) / 100);
+          const itemSgst = afterDiscount * ((gstPercent / 2) / 100);
+          const itemTax = afterDiscount * (taxPercent / 100);
+
+          cgstSum += itemCgst;
+          sgstSum += itemSgst;
+          customTaxSum += itemTax;
+
+          const rowTotal = afterDiscount + itemCgst + itemSgst + itemTax;
+
+          const tr = document.createElement('tr');
+          if (index % 2 === 1) {
+            tr.className = "bg-slate-50/50";
+          }
+
+          tr.innerHTML = `
+            <td class="py-2 px-2.5 font-semibold text-slate-900 leading-snug">
+              <div class="font-bold">${index + 1}. ${item.productName || item.name || "Product"}</div>
+              <div class="text-[7.5px] text-slate-400 font-mono font-normal">${item.description || "No item description catalog specification."}</div>
+            </td>
+            <td class="py-2 px-1 text-center text-slate-700 font-mono font-bold">${gstPercent}%</td>
+            <td class="py-2 px-1 text-center text-slate-700 font-bold font-mono">${qty}</td>
+            <td class="py-2 px-1.5 text-right text-slate-700 font-mono">${curr}${priceFormat(price)}</td>
+            <td class="py-2 px-1.5 text-right text-slate-700 font-mono">${curr}${priceFormat(afterDiscount)}</td>
+            <td class="py-2 px-1 text-right text-slate-500 font-mono">${curr}${priceFormat(itemCgst)}</td>
+            <td class="py-2 px-1 text-right text-slate-500 font-mono">${curr}${priceFormat(itemSgst)}</td>
+            <td class="py-2 px-2 text-right font-bold text-slate-900 font-mono">${curr}${priceFormat(rowTotal)}</td>
+          `;
+
+          itemsTbody.appendChild(tr);
+        });
+
+        // Binding calculations total values
+        document.getElementById('val-subtotal').textContent = curr + priceFormat(quotation.subtotal);
+        if (quotation.discountAmount > 0) {
+          document.getElementById('row-discount').classList.remove('hidden');
+          document.getElementById('label-discount').textContent = `Corporate Disc (${quotation.discountPercent}%):`;
+          document.getElementById('val-discount').textContent = `-${curr}${priceFormat(quotation.discountAmount)}`;
+        }
+
+        document.getElementById('val-cgst').textContent = curr + priceFormat(quotation.gstAmount / 2);
+        document.getElementById('val-sgst').textContent = curr + priceFormat(quotation.gstAmount / 2);
+
+        if (quotation.taxAmount > 0) {
+          document.getElementById('row-surcharge').classList.remove('hidden');
+          document.getElementById('val-surcharge').textContent = curr + priceFormat(quotation.taxAmount);
+        }
+
+        document.getElementById('val-delivery').textContent = curr + priceFormat(quotation.deliveryCharges);
+        document.getElementById('val-grandtotal').textContent = curr + priceFormat(quotation.grandTotal);
+
+        // Word format strings binding
+        const wordString = numberToEnglishWords(quotation.grandTotal, currencyCode);
+        document.getElementById('val-words').textContent = wordString;
+
+        // Business terms listing
+        document.getElementById('delivery-notes').textContent = quotation.deliveryTerms || "Standard dispatch and logistics applies.";
+        
+        const tcList = document.getElementById('tc-list');
+        tcList.innerHTML = '';
+        const rawTerms = quotation.paymentTerms || "30 days payment, goods once sold are non-returnable.";
+        const termsArray = rawTerms.split("\n").filter(t => t.trim());
+        
+        if (termsArray.length > 0) {
+          termsArray.forEach(term => {
+            const li = document.createElement('li');
+            li.textContent = term;
+            tcList.appendChild(li);
+          });
+        } else {
+          tcList.innerHTML = `
+            <li>Applicable taxes are detailed in calculation logs.</li>
+            <li>Terms are subject to immediate delivery cycles.</li>
+          `;
+        }
+
+        // Setup Foot Contact Info
+        const vendorNameLower = (template?.companyName || client.companyName || '').toLowerCase().replace(/\s+/g, "");
+        document.getElementById('foot-hq').textContent = `HQ: www.${vendorNameLower}.com`;
+        document.getElementById('foot-phone').textContent = `Mob: ${client.phone || '+91 99999 99999'}`;
+        document.getElementById('foot-email').textContent = `Email: sales@${vendorNameLower}.com`;
+
+        // Footer banner setup
+        const footerRibbon = document.getElementById('footer-ribbon');
+        if (template?.footerBanner) {
+          footerRibbon.innerHTML = `<img src="${template.footerBanner}" alt="Merchant Ribbon banner" class="w-full h-full object-cover">`;
+        } else {
+          footerRibbon.innerHTML = `
+            <svg viewBox="0 0 595 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+              <rect width="595" height="48" fill="white" />
+              <path d="M0 15 L180 8 L390 22 L595 5 V20 H0 Z" fill="#e2a326"/>
+              <path d="M0 20 L180 13 L390 27 L595 10 V48 H0 Z" fill="#0c353a"/>
+            </svg>
+          `;
+        }
+
+        // Hide loader and show A4 sheet
+        document.getElementById('loader-view').classList.add('hidden');
+        document.getElementById('print-area').classList.remove('hidden');
+
+      } catch (err) {
+        console.error("General loader error:", err);
+        document.getElementById('loader-view').classList.add('hidden');
+        const errView = document.getElementById('error-view');
+        errView.classList.remove('hidden');
+        document.getElementById('error-msg').textContent = "Failed to synchronize quotation: connection offline, or the quotation ID might be missing.";
+      }
+
+      // Render icons
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

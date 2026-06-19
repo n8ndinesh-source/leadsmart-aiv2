@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../services/api";
+import { useTheme } from "../context/ThemeContext";
 import { 
   X, 
   Plus, 
@@ -155,6 +156,7 @@ function numberToEnglishWords(amount: number, currencyCode: string): string {
 }
 
 export default function QuotationModal({ lead, onClose, onQuotationCreated }: QuotationModalProps) {
+  const { theme } = useTheme();
   const [templates, setTemplates] = useState<TemplateSelection[]>([]);
   const [previousQuotes, setPreviousQuotes] = useState<Quotation[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -711,31 +713,51 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
 
   return (
     <div id="quotation-creator-modal" className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#0b101e] border-2 border-slate-900 rounded-3xl w-full max-w-7xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] text-slate-200">
+      <div className={`border-2 rounded-3xl w-full max-w-7xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] transition-all ${
+        theme === "light"
+          ? "bg-slate-50 border-slate-200 text-slate-800"
+          : "bg-[#0b101e] border-2 border-slate-900 text-slate-200"
+      }`}>
         
         {/* Modal Header */}
-        <div className="p-4.5 bg-[#070b16] border-b border-slate-900 flex items-center justify-between">
+        <div className={`p-4.5 flex items-center justify-between border-b ${
+          theme === "light"
+            ? "bg-white border-slate-200 text-slate-800"
+            : "bg-[#070b16] border-slate-900 text-slate-200"
+        }`}>
           <div className="flex items-center space-x-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center">
-              <FileText className="w-5.5 h-5.5 text-indigo-400" />
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center border ${
+              theme === "light"
+                ? "bg-indigo-50 border-indigo-200"
+                : "bg-indigo-600/10 border-indigo-500/20"
+            }`}>
+              <FileText className={`w-5.5 h-5.5 ${theme === "light" ? "text-indigo-600" : "text-indigo-400"}`} />
             </div>
             <div>
-              <h2 className="text-sm font-black font-display text-white tracking-widest uppercase flex items-center">
+              <h2 className={`text-sm font-black font-display tracking-widest uppercase flex items-center ${
+                theme === "light" ? "text-slate-900" : "text-white"
+              }`}>
                 COMMERCIAL QUOTATION ENGINE
               </h2>
-              <p className="text-[10px] text-slate-400 italic mt-0.5">
-                Lead Account: <span className="text-indigo-400 font-bold">{lead.name}</span> ({lead.companyName || "No Company"}) • Pipeline: <span className="text-emerald-400 uppercase font-extrabold">{lead.status}</span>
+              <p className={`text-[10px] mt-0.5 ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
+                Lead Account: <span className={`${theme === "light" ? "text-indigo-600" : "text-indigo-400"} font-bold`}>{lead.name}</span> ({lead.companyName || "No Company"}) • Pipeline: <span className="text-emerald-500 uppercase font-extrabold">{lead.status}</span>
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* Modal Tabs */}
-            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-900 text-[10px]">
+            <div className={`flex p-1 rounded-xl border text-[10px] ${
+              theme === "light" ? "bg-slate-100 border-slate-200" : "bg-slate-950 border-slate-900"
+            }`}>
               <button 
                 onClick={() => setActiveTab("create")}
                 className={`px-3.5 py-2 rounded-lg font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === "create" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                  activeTab === "create" 
+                    ? "bg-indigo-600 text-white" 
+                    : theme === "light" 
+                      ? "text-slate-600 hover:text-slate-900" 
+                      : "text-slate-400 hover:text-white"
                 }`}
               >
                 Create Quotation
@@ -743,17 +765,27 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
               <button 
                 onClick={() => setActiveTab("history")}
                 className={`px-3.5 py-2 rounded-lg font-bold uppercase tracking-wider transition-all flex items-center space-x-2 cursor-pointer ${
-                  activeTab === "history" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"
+                  activeTab === "history" 
+                    ? "bg-indigo-600 text-white" 
+                    : theme === "light" 
+                      ? "text-slate-600 hover:text-slate-900" 
+                      : "text-slate-400 hover:text-white"
                 }`}
               >
                 <span>Proposal History</span>
-                <span className="bg-slate-900 text-indigo-400 px-1.5 py-0.2 rounded text-[8px] font-black">{previousQuotes.length}</span>
+                <span className={`px-1.5 py-0.2 rounded text-[8px] font-black ${
+                  theme === "light" ? "bg-slate-200 text-indigo-700" : "bg-slate-900 text-indigo-400"
+                }`}>{previousQuotes.length}</span>
               </button>
             </div>
 
             <button 
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900/60 cursor-pointer"
+              className={`p-2 rounded-xl cursor-pointer ${
+                theme === "light"
+                  ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900/60"
+              }`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -777,11 +809,15 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
           {activeTab === "create" ? (
             <>
               {editingQuotationId && (
-                <div className="p-4 mb-4 rounded-2xl border border-indigo-900/40 bg-[#070e1b] text-xs flex items-center justify-between text-indigo-300">
+                <div className={`p-4 mb-4 rounded-2xl border text-xs flex items-center justify-between transition-all ${
+                  theme === "light"
+                    ? "border-indigo-200 bg-indigo-50/50 text-indigo-800"
+                    : "border-indigo-900/40 bg-[#070e1b] text-indigo-300"
+                }`}>
                   <div className="flex items-center space-x-2.5">
-                    <Info className="w-4 h-4 text-indigo-400 shrink-0" />
+                    <Info className={`w-4 h-4 shrink-0 ${theme === "light" ? "text-indigo-600" : "text-indigo-400"}`} />
                     <span>
-                      Active Edit Mode: You are revising draft proposal <strong className="text-white font-mono">{quotationNumber}</strong>. Re-saving or Marking Ready will update this existing document.
+                      Active Edit Mode: You are revising draft proposal <strong className={`font-mono ${theme === "light" ? "text-black" : "text-white"}`}>{quotationNumber}</strong>. Re-saving or Marking Ready will update this existing document.
                     </span>
                   </div>
                   <button
@@ -806,7 +842,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                       setDeliveryCharges(0);
                       setDiscountPercent(0);
                     }}
-                    className="px-3 py-1 bg-slate-900 border border-slate-800 text-slate-350 hover:text-white rounded-lg text-[10px] font-bold tracking-wider hover:bg-slate-850 cursor-pointer shrink-0 ml-4"
+                    className={`px-3 py-1 border rounded-lg text-[10px] font-bold tracking-wider cursor-pointer shrink-0 ml-4 transition-all ${
+                      theme === "light"
+                        ? "bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50"
+                        : "bg-slate-900 border-slate-800 text-slate-350 hover:text-white hover:bg-slate-850"
+                    }`}
                   >
                     Clear & New Quote
                   </button>
@@ -816,91 +856,150 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
               
               {/* LEFT COLUMN: CREATOR WORKSPACE DASHBOARD */}
               <div className="lg:col-span-6 space-y-6">
-                         {/* 1. SELECT DESIGN TEMPLATE */}
-                <div className="p-4 bg-slate-950 border border-slate-900 rounded-2xl space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-900">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center">
+                {/* 1. SELECT DESIGN TEMPLATE */}
+                <div className={`p-4 rounded-2xl space-y-4 border transition-all ${
+                  theme === "light"
+                    ? "bg-white border-slate-200"
+                    : "bg-slate-950 border-slate-900"
+                }`}>
+                  <div className={`flex justify-between items-center pb-2 border-b ${
+                    theme === "light" ? "border-slate-100" : "border-slate-900"
+                  }`}>
+                    <span className={`text-[10px] uppercase font-bold tracking-wider flex items-center ${
+                      theme === "light" ? "text-slate-800" : "text-slate-400"
+                    }`}>
                       <Layers className="w-3.5 h-3.5 text-indigo-400 mr-1.5" />
                       1. SELECT DESIGN TEMPLATE
                     </span>
-                    <span className="text-[9px] text-slate-500 italic">Select template style</span>
+                    <span className={`text-[9px] italic ${
+                      theme === "light" ? "text-slate-400" : "text-slate-500"
+                    }`}>Select template style</span>
                   </div>
 
-                  <p className="text-[10px] text-slate-400 leading-relaxed">
-                    Choose a branding template designed under the <strong className="text-indigo-400">Quotation Templates</strong> configuration. This automatically builds the company headers, watermarks, logo mark, and document ribbons.
+                  <p className={`text-[10px] leading-relaxed ${
+                    theme === "light" ? "text-slate-600" : "text-slate-400"
+                  }`}>
+                    Choose a branding template designed under the <strong className={`${theme === "light" ? "text-indigo-600" : "text-indigo-400"}`}>Quotation Templates</strong> configuration. This automatically builds the company headers, watermarks, logo mark, and document ribbons.
                   </p>
 
                   <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                     {templates.length === 0 ? (
-                      <div className="p-4 text-center rounded-xl bg-slate-900/40 border border-slate-900">
-                        <p className="text-[10.5px] text-slate-500 font-medium">No design templates found.</p>
-                        <p className="text-[9px] text-slate-600 mt-1">Please create and design templates in the Quotation Templates configuration tab.</p>
+                      <div className={`p-4 text-center rounded-xl border ${
+                        theme === "light"
+                          ? "bg-slate-50 border-slate-200 text-slate-500"
+                          : "bg-slate-900/40 border border-slate-900"
+                      }`}>
+                        <p className={`text-[10.5px] font-medium ${theme === "light" ? "text-slate-650" : "text-slate-500"}`}>No design templates found.</p>
+                        <p className={`text-[9px] mt-1 ${theme === "light" ? "text-slate-400" : "text-slate-650"}`}>Please create and design templates in the Quotation Templates configuration tab.</p>
                       </div>
                     ) : (
-                      templates.map((t) => {
+                      templates.map((t, index) => {
                         const isSelected = selectedTemplateId === t.id;
                         return (
-                          <button
+                          <div
                             key={t.id}
-                            type="button"
+                            role="button"
+                            tabIndex={0}
                             onClick={() => handleTemplateDropdownChange(t.id)}
-                            className={`w-full text-left p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                handleTemplateDropdownChange(t.id);
+                              }
+                            }}
+                            className={`w-full text-left p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer focus:outline-none ${
                               isSelected 
-                                ? "bg-indigo-950/25 border-indigo-500/50 shadow-md shadow-indigo-950/20" 
-                                : "bg-[#080d1a] border-slate-900/80 hover:bg-slate-900/40 hover:border-slate-800"
+                                ? theme === "light"
+                                  ? "bg-indigo-50 border-indigo-500 shadow-sm"
+                                  : "bg-indigo-950/25 border-indigo-500/50 shadow-md shadow-indigo-950/20" 
+                                : theme === "light"
+                                  ? "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                                  : "bg-[#080d1a] border-slate-900/80 hover:bg-slate-900/40 hover:border-slate-800"
                             }`}
+                            style={index === 2 ? { backgroundColor: "#e7e7fc" } : undefined}
                           >
                             <div className="flex items-center space-x-3">
                               {t.logo ? (
-                                <img src={t.logo} alt="Logo" className="w-8 h-8 rounded-full border border-slate-800 object-contain bg-white" />
+                                <img src={t.logo} alt="Logo" className={`w-8 h-8 rounded-full border object-contain bg-white ${
+                                  theme === "light" ? "border-slate-200" : "border-slate-800"
+                                }`} />
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-bold ${
+                                  theme === "light"
+                                    ? "bg-slate-100 border-slate-200 text-slate-500"
+                                    : "bg-slate-900 border-slate-800 text-slate-500"
+                                }`}>
                                   N/A
                                 </div>
                               )}
                               <div>
-                                <h4 className="text-xs font-bold text-slate-200">{t.name}</h4>
-                                <p className="text-[10px] text-slate-400 flex items-center mt-0.5">
-                                  <Briefcase className="w-3 h-3 text-slate-505 mr-1 shrink-0" />
-                                  <span className="truncate max-w-[140px] block">{t.companyName || "No Company Specified"}</span>
+                                <h4 className={`text-xs font-bold ${
+                                  theme === "light" ? "text-slate-800" : "text-slate-200"
+                                }`}>{t.name}</h4>
+                                <p className={`text-[10px] flex items-center mt-0.5 ${
+                                  theme === "light" ? "text-slate-500" : "text-slate-400"
+                                }`}>
+                                  <Briefcase className={`w-3 h-3 mr-1 shrink-0 ${
+                                    theme === "light" ? "text-indigo-500" : "text-slate-505"
+                                  }`} />
+                                  <span className="truncate max-w-[140px] block" style={index === 2 ? { color: "#000000" } : undefined}>{t.companyName || "No Company Specified"}</span>
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
                               {isSelected ? (
-                                <span className="bg-indigo-500 text-white p-1 rounded-full text-[9px] flex items-center justify-center">
+                                <span className={`p-1 rounded-full text-[9px] flex items-center justify-center ${
+                                  theme === "light" ? "bg-indigo-650 text-white" : "bg-indigo-500 text-white"
+                                }`}>
                                   <Check className="w-3 h-3" />
                                 </span>
                               ) : (
-                                <span className="text-[8.5px] font-semibold text-slate-500 border border-slate-800 px-2 py-0.5 rounded">
+                                <span className={`text-[8.5px] font-semibold px-2 py-0.5 rounded border transition-all ${
+                                  theme === "light"
+                                    ? "text-slate-650 border-slate-200 bg-slate-50 hover:bg-slate-100"
+                                    : "text-slate-500 border-slate-800"
+                                }`}>
                                   Select
                                 </span>
                               )}
                             </div>
-                          </button>
+                          </div>
                         );
                       })
                     )}
                   </div>
 
                   {/* Watermark/Preview Overlay Fine-Tuning Block */}
-                  <div className="p-3 bg-[#080d1a] border border-slate-900/60 rounded-xl space-y-3">
-                    <div className="flex justify-between items-center pb-1.5 border-b border-slate-900/40">
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Preview Overlay Controls</span>
+                  <div className={`p-3 rounded-xl space-y-3 border transition-all ${
+                    theme === "light"
+                      ? "bg-slate-50 border-slate-200"
+                      : "bg-[#080d1a] border-slate-900/60"
+                  }`}>
+                    <div className={`flex justify-between items-center pb-1.5 border-b ${
+                      theme === "light" ? "border-slate-200/60" : "border-slate-900/40"
+                    }`}>
+                      <span className={`text-[10px] uppercase font-bold ${
+                        theme === "light" ? "text-slate-705" : "text-slate-400"
+                      }`}>Preview Overlay Controls</span>
                       <label className="flex items-center space-x-1 cursor-pointer">
                         <input 
                           type="checkbox" 
                           checked={branding.watermarkVisible} 
                           onChange={(e) => setBranding(prev => ({ ...prev, watermarkVisible: e.target.checked }))} 
-                          className="w-3 h-3 rounded text-indigo-600 bg-slate-900 border-slate-805" 
+                          className={`w-3 h-3 rounded transition-all ${
+                            theme === "light"
+                              ? "text-indigo-600 bg-white border-slate-300"
+                              : "text-indigo-600 bg-slate-900 border-slate-805"
+                          }`}
                         />
-                        <span className="text-[9px] text-slate-450">Show Watermark</span>
+                        <span className={`text-[9px] ${
+                          theme === "light" ? "text-slate-600" : "text-slate-450"
+                        }`}>Show Watermark</span>
                       </label>
                     </div>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-[9px] text-slate-450">
-                        <span>Watermark Opacity</span>
-                        <strong className="text-white">{branding.watermarkOpacity}%</strong>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[9px] items-center">
+                        <span className={theme === "light" ? "text-slate-600" : "text-slate-450"}>Watermark Opacity</span>
+                        <strong className={`font-mono text-[10px] ${theme === "light" ? "text-indigo-600 font-extrabold" : "text-white"}`}>{branding.watermarkOpacity}%</strong>
                       </div>
                       <input 
                         type="range" 
@@ -909,15 +1008,23 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                         step="5" 
                         value={branding.watermarkOpacity} 
                         onChange={(e) => setBranding(prev => ({ ...prev, watermarkOpacity: parseInt(e.target.value) }))}
-                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                        className={`w-full h-1.5 rounded-lg cursor-pointer accent-indigo-600 transition-all ${
+                          theme === "light" ? "bg-slate-200" : "bg-slate-800"
+                        }`}
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* 2. VENDOR & CLIENT PRESETS CARDS */}
-                <div className="p-4 bg-slate-950 border border-slate-900 rounded-2xl space-y-4">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block border-b border-slate-900 pb-1">
+                <div className={`p-4 rounded-2xl space-y-4 border transition-all ${
+                  theme === "light"
+                    ? "bg-white border-slate-200"
+                    : "bg-slate-950 border-slate-900"
+                }`}>
+                  <span className={`text-[10px] uppercase font-bold tracking-wider block border-b pb-1 ${
+                    theme === "light" ? "text-slate-800 border-slate-100" : "text-slate-400 border-slate-900"
+                  }`}>
                     2. GEOGRAPHIC PARTIES (FROM & FOR ADDRESS blocks)
                   </span>
 
@@ -925,9 +1032,15 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                     {/* FROM BLOCK Vendor details */}
                     <div className="space-y-2.5">
                       <div className="flex justify-between items-center">
-                        <label className="text-[9px] font-bold uppercase text-slate-400 block">Quotation From (Vendor)</label>
+                        <label className={`text-[9px] font-bold uppercase block ${
+                          theme === "light" ? "text-slate-600" : "text-slate-400"
+                        }`}>Quotation From (Vendor)</label>
                         <select 
-                          className="bg-slate-900 border border-slate-800 text-[9.5px] text-slate-300 rounded px-1.5 py-0.5 focus:outline-none"
+                          className={`text-[9.5px] rounded px-1.5 py-0.5 focus:outline-none border transition-all ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-700"
+                              : "bg-slate-900 border-slate-800 text-slate-300"
+                          }`}
                           onChange={(e) => handleVendorPresetChange(e.target.value)}
                         >
                           <option value="ECOPEK">ECOPEK</option>
@@ -943,14 +1056,22 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                           placeholder="Vendor Business Name" 
                           value={vendorDetails.name} 
                           onChange={(e) => setVendorDetails(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-xs text-white" 
+                          className={`w-full rounded p-1.5 text-xs transition-all border ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                              : "bg-slate-900 border-slate-850 text-white placeholder-slate-600"
+                          }`} 
                         />
                         <input 
                           type="text" 
                           placeholder="Vendor Address Location" 
                           value={vendorDetails.address} 
                           onChange={(e) => setVendorDetails(prev => ({ ...prev, address: e.target.value }))}
-                          className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[11px] text-white" 
+                          className={`w-full rounded p-1.5 text-[11px] transition-all border ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                              : "bg-slate-900 border-slate-850 text-white placeholder-slate-600"
+                          }`} 
                         />
                         <div className="grid grid-cols-2 gap-1 px-0.2">
                           <input 
@@ -958,14 +1079,22 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                             placeholder="GSTIN" 
                             value={vendorDetails.gstin} 
                             onChange={(e) => setVendorDetails(prev => ({ ...prev, gstin: e.target.value }))}
-                            className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[10px] text-white font-mono" 
+                            className={`w-full rounded p-1.5 text-[10px] font-mono transition-all border ${
+                              theme === "light"
+                                ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                                : "bg-slate-900 border-slate-850 text-white font-mono placeholder-slate-600"
+                            }`} 
                           />
                           <input 
                             type="text" 
                             placeholder="PAN" 
                             value={vendorDetails.pan} 
                             onChange={(e) => setVendorDetails(prev => ({ ...prev, pan: e.target.value }))}
-                            className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[10px] text-white font-mono" 
+                            className={`w-full rounded p-1.5 text-[10px] font-mono transition-all border ${
+                              theme === "light"
+                                ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                                : "bg-slate-900 border-slate-850 text-white font-mono placeholder-slate-600"
+                            }`} 
                           />
                         </div>
                         <input 
@@ -973,7 +1102,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                           placeholder="Contact Number" 
                           value={vendorDetails.phone} 
                           onChange={(e) => setVendorDetails(prev => ({ ...prev, phone: e.target.value }))}
-                          className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[10px] text-white font-mono" 
+                          className={`w-full rounded p-1.5 text-[10px] font-mono transition-all border ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                              : "bg-slate-900 border-slate-850 text-white font-mono placeholder-slate-600"
+                          }`} 
                         />
                       </div>
                     </div>
@@ -981,9 +1114,15 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                     {/* FOR BLOCK Lead/Client details */}
                     <div className="space-y-2.5">
                       <div className="flex justify-between items-center">
-                        <label className="text-[9px] font-bold uppercase text-slate-400 block">Quotation For (Client)</label>
+                        <label className={`text-[9px] font-bold uppercase block ${
+                          theme === "light" ? "text-slate-600" : "text-slate-400"
+                        }`}>Quotation For (Client)</label>
                         <select 
-                          className="bg-slate-900 border border-slate-800 text-[9.5px] text-slate-300 rounded px-1.5 py-0.5 focus:outline-none"
+                          className={`text-[9.5px] rounded px-1.5 py-0.5 focus:outline-none border transition-all ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-700"
+                              : "bg-slate-900 border-slate-800 text-slate-300"
+                          }`}
                           onChange={(e) => handleClientPresetChange(e.target.value)}
                         >
                           <option value="LEAD_DEFAULT">Default Active Lead</option>
@@ -997,14 +1136,22 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                           value={clientDetails.name} 
                           onChange={(e) => setClientDetails(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="Client Company Name" 
-                          className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-xs text-white" 
+                          className={`w-full rounded p-1.5 text-xs transition-all border ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                              : "bg-slate-900 border-slate-850 text-white placeholder-slate-600"
+                          }`} 
                         />
                         <input 
                           type="text" 
                           value={clientDetails.address} 
                           onChange={(e) => setClientDetails(prev => ({ ...prev, address: e.target.value }))}
                           placeholder="Physical Address details" 
-                          className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[11px] text-white" 
+                          className={`w-full rounded p-1.5 text-[11px] transition-all border ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                              : "bg-slate-900 border-slate-850 text-white placeholder-slate-600"
+                          }`} 
                         />
                         <div className="grid grid-cols-2 gap-1 px-0.2">
                           <input 
@@ -1012,14 +1159,22 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                             value={clientDetails.gstin} 
                             onChange={(e) => setClientDetails(prev => ({ ...prev, gstin: e.target.value }))}
                             placeholder="GSTIN" 
-                            className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[10px] text-white font-mono" 
+                            className={`w-full rounded p-1.5 text-[10px] font-mono transition-all border ${
+                              theme === "light"
+                                ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                                : "bg-slate-900 border-slate-850 text-white font-mono placeholder-slate-600"
+                            }`} 
                           />
                           <input 
                             type="text" 
                             value={clientDetails.pan} 
                             onChange={(e) => setClientDetails(prev => ({ ...prev, pan: e.target.value }))}
                             placeholder="PAN" 
-                            className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[10px] text-white font-mono" 
+                            className={`w-full rounded p-1.5 text-[10px] font-mono transition-all border ${
+                              theme === "light"
+                                ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                                : "bg-slate-900 border-slate-850 text-white font-mono placeholder-slate-600"
+                            }`} 
                           />
                         </div>
                         <input 
@@ -1027,7 +1182,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                           value={clientDetails.phone} 
                           onChange={(e) => setClientDetails(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="Contact phone number" 
-                          className="w-full bg-slate-900 border border-slate-850 rounded p-1.5 text-[10px] text-white font-mono" 
+                          className={`w-full rounded p-1.5 text-[10px] font-mono transition-all border ${
+                            theme === "light"
+                              ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40 focus:outline-none"
+                              : "bg-slate-900 border-slate-850 text-white font-mono placeholder-slate-600"
+                          }`} 
                         />
                       </div>
                     </div>
@@ -1035,31 +1194,49 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                 </div>
 
                 {/* 3. COORDINATES AND METAS CARD */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-950 border border-slate-900 rounded-2xl">
-                  <div className="space-y-1 md:col-span-3 pb-1 border-b border-slate-900">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl border transition-all ${
+                  theme === "light"
+                    ? "bg-white border-slate-200"
+                    : "bg-slate-950 border-slate-900"
+                }`}>
+                  <div className={`space-y-1 md:col-span-3 pb-1 border-b ${
+                    theme === "light" ? "border-slate-100" : "border-slate-900"
+                  }`}>
+                    <span className={`text-[10px] uppercase font-bold tracking-wider ${
+                      theme === "light" ? "text-slate-805" : "text-slate-400"
+                    }`}>
                       3. TAXATION & SUPPLY LOCALES
                     </span>
                   </div>
 
-
-
                   <div className="space-y-1.5">
-                    <label className="text-[9px] uppercase font-bold text-slate-450 block">Quotation No.</label>
+                    <label className={`text-[9px] uppercase font-bold block ${
+                      theme === "light" ? "text-slate-500" : "text-slate-450"
+                    }`}>Quotation No.</label>
                     <input
                       type="text"
                       value={quotationNumber}
                       onChange={(e) => setQuotationNumber(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs p-2 rounded focus:outline-none focus:border-indigo-500 font-mono"
+                      className={`w-full text-xs p-2 rounded focus:outline-none border font-mono transition-all ${
+                        theme === "light"
+                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
+                      }`}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] uppercase font-bold text-slate-450 block">Currency symbols</label>
+                    <label className={`text-[9px] uppercase font-bold block ${
+                      theme === "light" ? "text-slate-500" : "text-slate-450"
+                    }`}>Currency symbol</label>
                     <select
                       value={meta.currency}
                       onChange={(e) => setMeta(prev => ({ ...prev, currency: e.target.value }))}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs p-2 rounded focus:outline-none focus:border-indigo-500 font-bold"
+                      className={`w-full text-xs p-2 rounded focus:outline-none border font-bold transition-all ${
+                        theme === "light"
+                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
+                      }`}
                     >
                       <option value="INR">Indian Rupee (INR, ₹)</option>
                       <option value="USD">US Dollar (USD, $)</option>
@@ -1068,32 +1245,50 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] uppercase font-bold text-slate-450 block">State of Supply</label>
+                    <label className={`text-[9px] uppercase font-bold block ${
+                      theme === "light" ? "text-slate-500" : "text-slate-450"
+                    }`}>State of Supply</label>
                     <input
                       type="text"
                       value={meta.stateOfSupply}
                       onChange={(e) => setMeta(prev => ({ ...prev, stateOfSupply: e.target.value }))}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs p-2 rounded focus:outline-none focus:border-indigo-500"
+                      className={`w-full text-xs p-2 rounded focus:outline-none border transition-all ${
+                        theme === "light"
+                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
+                      }`}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] uppercase font-bold text-slate-455 block">Country of Supply</label>
+                    <label className={`text-[9px] uppercase font-bold block ${
+                      theme === "light" ? "text-slate-505" : "text-slate-455"
+                    }`}>Country of Supply</label>
                     <input
                       type="text"
                       value={meta.countryOfSupply}
                       onChange={(e) => setMeta(prev => ({ ...prev, countryOfSupply: e.target.value }))}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs p-2 rounded focus:outline-none focus:border-indigo-500"
+                      className={`w-full text-xs p-2 rounded focus:outline-none border transition-all ${
+                        theme === "light"
+                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
+                      }`}
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[9px] uppercase font-bold text-slate-455 block">Bid Validity Days</label>
+                    <label className={`text-[9px] uppercase font-bold block ${
+                      theme === "light" ? "text-slate-550" : "text-slate-455"
+                    }`}>Bid Validity Days</label>
                     <input
                       type="text"
                       value={validityDays}
                       onChange={(e) => setValidityDays(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 text-white text-xs p-2 rounded focus:outline-none focus:border-indigo-500"
+                      className={`w-full text-xs p-2 rounded focus:outline-none border transition-all ${
+                        theme === "light"
+                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
+                      }`}
                     />
                   </div>
                 </div>
@@ -1101,14 +1296,20 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                 {/* 4. LINE ITEMS WORKSPACE TABLE rows */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                    <span className={`text-[10px] uppercase font-bold tracking-wider ${
+                      theme === "light" ? "text-slate-805" : "text-slate-400"
+                    }`}>
                       4. PRODUCTS & SCOPE OF SERVICE WORKSPACE
                     </span>
                     <div className="flex space-x-1.5">
                       <button
                         type="button"
                         onClick={handleEditGstFlat}
-                        className="px-2 py-1 text-[9px] rounded bg-slate-900 border border-slate-800 hover:text-white hover:border-slate-750 font-bold"
+                        className={`px-2 py-1 text-[9px] rounded font-bold border transition-all ${
+                          theme === "light"
+                            ? "bg-slate-50 border-slate-205 text-slate-705 hover:bg-slate-100"
+                            : "bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-755"
+                        }`}
                         title="Set a flat GST percent across all rows"
                       >
                         Flat GST %
@@ -1116,7 +1317,7 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                       <button
                         type="button"
                         onClick={handleAddProductRow}
-                        className="px-2.5 py-1 text-[9.5px] rounded bg-indigo-650 hover:bg-indigo-600 text-white font-extrabold flex items-center space-x-1 transition-all cursor-pointer"
+                        className="px-2.5 py-1 text-[9.5px]/[14px] rounded bg-indigo-650 hover:bg-indigo-600 text-white font-extrabold flex items-center space-x-1 transition-all cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Add Row</span>
@@ -1128,30 +1329,52 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                     {productsList.map((row, index) => (
                       <div 
                         key={row.id} 
-                        className="p-4 rounded-xl border border-slate-900 bg-[#070b16] space-y-3 relative group"
+                        className={`p-4 rounded-xl border space-y-3 relative group transition-all ${
+                          theme === "light"
+                            ? "border-slate-200 bg-white shadow-sm"
+                            : "border-slate-900 bg-[#070b16]"
+                        }`}
                       >
                         {/* Serial header and edit tools */}
-                        <div className="flex justify-between items-center border-b border-slate-950 pb-1.5">
-                          <span className="text-[9px] font-mono font-extrabold text-indigo-400 bg-indigo-900/10 px-1.5 py-0.2 rounded">Item block #{index + 1}</span>
+                        <div className={`flex justify-between items-center border-b pb-1.5 ${
+                          theme === "light" ? "border-slate-100" : "border-slate-950"
+                        }`}>
+                          <span className={`text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded ${
+                            theme === "light"
+                              ? "text-indigo-705 bg-indigo-50"
+                              : "text-indigo-400 bg-indigo-900/10"
+                          }`}>Item block #{index + 1}</span>
                           <div className="flex items-center space-x-1 select-none">
                             <button
                               type="button"
                               onClick={() => handleMoveProductRow(index, -1)}
-                              className="text-slate-400 hover:text-white p-0.5 hover:bg-slate-900 rounded"
+                              className={`p-0.5 rounded transition-all ${
+                                theme === "light"
+                                  ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+                              }`}
                             >
                               <ChevronUp className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleMoveProductRow(index, 1)}
-                              className="text-slate-400 hover:text-white p-0.5 hover:bg-slate-900 rounded"
+                              className={`p-0.5 rounded transition-all ${
+                                theme === "light"
+                                  ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+                              }`}
                             >
                               <ChevronDown className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDuplicateProductRow(row)}
-                              className="text-slate-400 hover:text-indigo-400 p-0.5 hover:bg-slate-900 rounded"
+                              className={`p-0.5 rounded transition-all ${
+                                theme === "light"
+                                  ? "text-slate-500 hover:text-indigo-600 hover:bg-slate-100"
+                                  : "text-slate-400 hover:text-indigo-400 hover:bg-slate-900"
+                              }`}
                               title="Duplicate row"
                             >
                               <Copy className="w-3.5 h-3.5" />
@@ -1160,7 +1383,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               <button
                                 type="button"
                                 onClick={() => handleRemoveProductRow(row.id)}
-                                className="text-red-400 hover:text-red-300 p-0.5 hover:bg-slate-900 rounded"
+                                className={`p-0.5 rounded transition-all ${
+                                  theme === "light"
+                                    ? "text-red-600 hover:text-red-700 hover:bg-slate-100"
+                                    : "text-red-400 hover:text-red-300 hover:bg-slate-900"
+                                }`}
                                 title="Delete row"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1176,7 +1403,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                             <select
                               value={row.name}
                               onChange={(e) => updateProductRow(row.id, "name", e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 focus:outline-none"
+                              className={`w-full text-xs rounded px-2 py-1 focus:outline-none border transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-205 text-slate-800"
+                                  : "bg-slate-950 border-slate-850 text-white"
+                              }`}
                             >
                               <option value="">-- Custom Manual Row --</option>
                               {PRESET_PRODUCTS.map(p => (
@@ -1192,7 +1423,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               value={row.name}
                               onChange={(e) => updateProductRow(row.id, "name", e.target.value)}
                               placeholder="e.g. Saffron Organic Fiber Pack"
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 focus:outline-none"
+                              className={`w-full text-xs rounded px-2 py-1 focus:outline-none border transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/45"
+                                  : "bg-slate-950 border-slate-850 text-white"
+                              }`}
                             />
                           </div>
                         </div>
@@ -1205,7 +1440,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               value={row.code}
                               onChange={(e) => updateProductRow(row.id, "code", e.target.value)}
                               placeholder="e.g. 1211"
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 font-mono focus:outline-none"
+                              className={`w-full text-xs rounded px-2 py-1 font-mono focus:outline-none border transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                  : "bg-slate-950 border-slate-850 text-white font-mono"
+                              }`}
                             />
                           </div>
                           <div className="md:col-span-8 space-y-1">
@@ -1215,13 +1454,19 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               value={row.description}
                               onChange={(e) => updateProductRow(row.id, "description", e.target.value)}
                               placeholder="e.g. FDA certified, surgical wholesale grade extraction..."
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 focus:outline-none"
+                              className={`w-full text-xs rounded px-2 py-1 focus:outline-none border transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                  : "bg-slate-950 border-slate-850 text-white"
+                              }`}
                             />
                           </div>
                         </div>
 
                         {/* Numerical computation rows */}
-                        <div className="grid grid-cols-3 md:grid-cols-5 gap-3.5 pt-1 border-t border-slate-950">
+                        <div className={`grid grid-cols-3 md:grid-cols-5 gap-3.5 pt-1 border-t ${
+                          theme === "light" ? "border-slate-100" : "border-slate-950"
+                        }`}>
                           <div className="space-y-1">
                             <label className="text-[8.5px] uppercase font-mono font-bold text-slate-500 block">Quantity</label>
                             <input
@@ -1229,7 +1474,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               min="1"
                               value={row.quantity}
                               onChange={(e) => updateProductRow(row.id, "quantity", Number(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 font-bold font-mono text-center"
+                              className={`w-full text-xs rounded px-1.5 py-1 font-bold font-mono text-center border focus:outline-none transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-205 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                  : "bg-slate-950 border-slate-850 text-white"
+                              }`}
                             />
                           </div>
 
@@ -1239,7 +1488,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               type="number"
                               value={row.unitPrice}
                               onChange={(e) => updateProductRow(row.id, "unitPrice", Number(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 font-bold font-mono text-emerald-400 text-right"
+                              className={`w-full text-xs rounded px-1.5 py-1 font-bold font-mono text-right border focus:outline-none transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-202 text-emerald-700 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                  : "bg-slate-950 border-slate-850 text-emerald-400"
+                              }`}
                             />
                           </div>
 
@@ -1251,7 +1504,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               max="100"
                               value={row.discount}
                               onChange={(e) => updateProductRow(row.id, "discount", Number(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 font-mono text-red-400 text-center"
+                              className={`w-full text-xs rounded px-1.5 py-1 font-mono text-center border focus:outline-none transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-202 text-red-600 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                  : "bg-slate-950 border-slate-850 text-red-400"
+                              }`}
                             />
                           </div>
 
@@ -1260,7 +1517,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                             <select
                               value={row.gst}
                               onChange={(e) => updateProductRow(row.id, "gst", Number(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-2 py-1 font-semibold text-center"
+                              className={`w-full text-xs rounded px-2 py-1 font-semibold text-center border focus:outline-none transition-all ${
+                                theme === "light"
+                                  ? "bg-slate-50 border-slate-205 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                  : "bg-slate-950 border-slate-850 text-white"
+                              }`}
                             >
                               <option value="0">0%</option>
                               <option value="5">5%</option>
@@ -1277,14 +1538,22 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                                 type="text"
                                 value={row.taxName}
                                 onChange={(e) => updateProductRow(row.id, "taxName", e.target.value)}
-                                className="w-8 shrink-0 bg-slate-950 border border-slate-850 text-[9px] text-white rounded text-center font-bold"
+                                className={`w-8 shrink-0 text-[10px] rounded text-center font-bold border focus:outline-none transition-all ${
+                                  theme === "light"
+                                    ? "bg-slate-50 border-slate-205 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                    : "bg-slate-950 border-slate-850 text-white"
+                                }`}
                                 placeholder="VAT"
                               />
                               <input
                                 type="number"
                                 value={row.taxRate}
                                 onChange={(e) => updateProductRow(row.id, "taxRate", Number(e.target.value))}
-                                className="w-full bg-slate-950 border border-slate-850 text-white text-xs rounded px-1.5 py-1 font-mono"
+                                className={`w-full text-xs rounded px-1.5 py-1 font-mono border focus:outline-none transition-all ${
+                                  theme === "light"
+                                    ? "bg-slate-50 border-slate-205 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                                    : "bg-slate-950 border-slate-850 text-white"
+                                }`}
                                 placeholder="%"
                               />
                             </div>
@@ -1292,26 +1561,34 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                         </div>
 
                         {/* Live row results row */}
-                        <div className="flex justify-between items-center text-[10px] text-slate-500 pt-1">
+                        <div className={`flex justify-between items-center text-[10px] pt-1 ${
+                          theme === "light" ? "text-slate-600" : "text-slate-505"
+                        }`}>
                           <span>Base Amount: {curr}{(row.quantity * row.unitPrice).toFixed(2)}</span>
                           <span>CGST (half of {row.gst}%): {curr}{(row.rowTotal ? ((row.quantity * row.unitPrice) * (row.gst / 200)) : 0).toFixed(2)}</span>
-                          <span className="text-white font-bold font-mono">Row Total: {curr}{(row.quantity * row.unitPrice * (1 - (row.discount/100)) * (1 + (row.gst/100) + (row.taxRate/100))).toFixed(2)}</span>
+                          <span className={`font-bold font-mono ${theme === "light" ? "text-indigo-900" : "text-white"}`}>Row Total: {curr}{(row.quantity * row.unitPrice * (1 - (row.discount/100)) * (1 + (row.gst/100) + (row.taxRate/100))).toFixed(2)}</span>
                         </div>
 
                       </div>
                     ))}
                   </div>
-                </div>
-
-                {/* 5. PDF SETTINGS & VIEW CODES */}
-                <div className="p-4 bg-slate-950 border border-slate-900 rounded-xl space-y-3">
-                  <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider flex items-center font-mono block mb-1">
+                            {/* 5. PDF SETTINGS & VIEW CODES */}
+                <div className={`p-4 rounded-xl space-y-3 border transition-all ${
+                  theme === "light"
+                    ? "bg-white border-slate-200 shadow-sm text-slate-800"
+                    : "bg-slate-950 border-slate-900 text-slate-100"
+                }`}>
+                  <span className={`text-[10px] uppercase font-bold tracking-wider flex items-center font-mono block mb-1 ${
+                    theme === "light" ? "text-indigo-7000" : "text-indigo-400"
+                  }`}>
                     5. TOTALS OPTIONS & GLOBAL CALCULATORS
                   </span>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+                  <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 text-xs ${
+                    theme === "light" ? "text-slate-700" : "text-slate-300"
+                  }`}>
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center">Show Grand Total on Preview</span>
+                      <span className="flex items-center font-medium">Show Grand Total on Preview</span>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input 
                           type="checkbox" 
@@ -1319,12 +1596,14 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                           onChange={(e) => setMeta(prev => ({ ...prev, showPDFTotals: e.target.checked }))} 
                           className="sr-only peer" 
                         />
-                        <div className="w-9 h-5 bg-slate-850 rounded-full peer peer-focus:ring-1 peer-focus:ring-indigo-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-205 after:bg-slate-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <div className={`w-9 h-5 rounded-full peer peer-focus:ring-1 peer-focus:ring-indigo-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 ${
+                          theme === "light" ? "bg-slate-200 after:bg-white" : "bg-slate-850 after:bg-slate-300"
+                        }`}></div>
                       </label>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center">Convert Grand Total to Words</span>
+                      <span className="flex items-center font-medium">Convert Grand Total to Words</span>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input 
                           type="checkbox" 
@@ -1332,36 +1611,50 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                           onChange={(e) => setMeta(prev => ({ ...prev, showWords: e.target.checked }))} 
                           className="sr-only peer" 
                         />
-                        <div className="w-9 h-5 bg-slate-850 rounded-full peer peer-focus:ring-1 peer-focus:ring-indigo-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-slate-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <div className={`w-9 h-5 rounded-full peer peer-focus:ring-1 peer-focus:ring-indigo-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 ${
+                          theme === "light" ? "bg-slate-200 after:bg-white" : "bg-slate-850 after:bg-slate-300"
+                        }`}></div>
                       </label>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-[8.5px] uppercase font-mono font-bold text-slate-500 block">Surcharges / Delivery Charges ({curr})</label>
+                      <label className="block text-[8.5px] uppercase font-mono font-bold text-slate-500">Surcharges / Delivery Charges ({curr})</label>
                       <input 
                         type="number" 
                         value={deliveryCharges} 
                         onChange={(e) => setDeliveryCharges(Math.abs(parseFloat(e.target.value) || 0))}
-                        className="w-full bg-slate-900 text-slate-200 border border-slate-800 text-xs font-mono font-bold p-1.5 rounded focus:outline-none" 
+                        className={`w-full text-xs font-mono font-bold p-1.5 rounded focus:outline-none border transition-all ${
+                          theme === "light"
+                            ? "bg-slate-50 border-slate-205 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                            : "bg-slate-900 border-slate-800 text-slate-200"
+                        }`} 
                         placeholder="0"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-[8.5px] uppercase font-mono font-bold text-slate-500 block">Global Corporate Discount (%)</label>
+                      <label className="block text-[8.5px] uppercase font-mono font-bold text-slate-500">Global Corporate Discount (%)</label>
                       <input 
                         type="number" 
                         value={discountPercent} 
                         onChange={(e) => setDiscountPercent(Math.abs(parseFloat(e.target.value) || 0))} 
-                        className="w-full bg-slate-900 text-slate-200 border border-slate-800 text-xs font-mono font-bold p-1.5 rounded focus:outline-none" 
+                        className={`w-full text-xs font-mono font-bold p-1.5 rounded focus:outline-none border transition-all ${
+                          theme === "light"
+                            ? "bg-slate-50 border-slate-205 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                            : "bg-slate-900 border-slate-800 text-slate-200"
+                        }`} 
                         placeholder="0%"
                       />
                     </div>
                   </div>
 
                   {meta.showWords && (
-                    <div className="p-2.5 bg-[#0e1726]/40 rounded-xl text-[10px] text-indigo-400 italic font-mono leading-relaxed">
-                      Generated Total Text: <strong className="text-white">{wordsOfGrandTotal}</strong>
+                    <div className={`p-2.5 rounded-xl text-[10px] italic font-mono leading-relaxed ${
+                      theme === "light"
+                        ? "bg-indigo-50/75 text-indigo-700"
+                        : "bg-[#0e1726]/40 text-indigo-450"
+                    }`}>
+                      Generated Total Text: <strong className={theme === "light" ? "text-indigo-955 font-bold" : "text-white"}>{wordsOfGrandTotal}</strong>
                     </div>
                   )}
                 </div>
@@ -1369,70 +1662,112 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                 {/* 6. APPENDIX CONDITIONS CARD */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1 px-1">
-                    <label className="text-[9px] uppercase font-bold text-slate-450 block">Logistics / Delivery notes</label>
+                    <label className={`text-[9px] uppercase font-bold block ${
+                      theme === "light" ? "text-slate-805" : "text-slate-450"
+                    }`}>Logistics / Delivery notes</label>
                     <textarea
                       rows={2}
                       value={deliveryTerms}
                       onChange={(e) => setDeliveryTerms(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-900 text-white text-xs rounded-xl p-3 focus:outline-none"
+                      className={`w-full text-xs rounded-xl p-3 focus:outline-none border transition-all ${
+                        theme === "light"
+                          ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                          : "bg-slate-950 border-slate-900 text-white focus:border-indigo-500"
+                      }`}
                       placeholder="e.g. Immediate delivery coordinates..."
                     />
                   </div>
 
                   <div className="space-y-1 px-1">
-                    <label className="text-[9px] uppercase font-bold text-slate-450 block">Wire Bank / Payment instructions</label>
+                    <label className={`text-[9px] uppercase font-bold block ${
+                      theme === "light" ? "text-slate-805" : "text-slate-450"
+                    }`}>Wire Bank / Payment instructions</label>
                     <textarea
                       rows={2}
                       value={paymentTerms}
                       onChange={(e) => setPaymentTerms(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-900 text-white text-xs rounded-xl p-3 focus:outline-none"
+                      className={`w-full text-xs rounded-xl p-3 focus:outline-none border transition-all ${
+                        theme === "light"
+                          ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                          : "bg-slate-950 border-slate-900 text-white focus:border-indigo-500"
+                      }`}
                       placeholder="e.g. Standard bank routing codes..."
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1 px-1">
-                  <label className="text-[9px] uppercase font-bold text-slate-450 block">Footer Greeting notes / remarks</label>
+                  <label className={`text-[9px] uppercase font-bold block ${
+                    theme === "light" ? "text-slate-805" : "text-slate-450"
+                  }`}>Footer Greeting notes / remarks</label>
                   <textarea
                     rows={1.5}
                     value={additionalNotes}
                     onChange={(e) => setAdditionalNotes(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-900 text-white text-xs rounded-xl p-3 focus:outline-none"
+                    className={`w-full text-xs rounded-xl p-3 focus:outline-none border transition-all ${
+                      theme === "light"
+                        ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                        : "bg-slate-950 border-slate-900 text-white focus:border-indigo-500"
+                    }`}
                     placeholder="We appreciate your corporate business..."
                   />
                 </div>
 
                 {/* Extra Action tools list */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 border-t border-slate-900 pt-3">
+                <div className={`grid grid-cols-2 md:grid-cols-4 gap-2 border-t pt-3 ${
+                  theme === "light" ? "border-slate-105" : "border-slate-900"
+                }`}>
                   <button 
                     type="button" 
                     onClick={handleEditTerms}
-                    className="p-2 bg-slate-900 hover:bg-slate-850 rounded-xl border border-slate-800 text-[10px] font-extrabold uppercase text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
+                      theme === "light"
+                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700"
+                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300 hover:text-white"
+                    }`}
                   >
                     <span>Config Terms</span>
                   </button>
                   <button 
                     type="button" 
                     onClick={() => alert("Digital Signature placeholder setup completed!")}
-                    className="p-2 bg-slate-900 hover:bg-slate-850 rounded-xl border border-slate-800 text-[10px] font-extrabold uppercase text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
+                      theme === "light"
+                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700"
+                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300 hover:text-white"
+                    }`}
                   >
                     <span>Add Signature</span>
                   </button>
                   <button 
                     type="button" 
                     onClick={() => alert("Corporate PDF scope attachments enabled!")}
-                    className="p-2 bg-slate-900 hover:bg-slate-850 rounded-xl border border-slate-800 text-[10px] font-extrabold uppercase text-slate-300 hover:text-white flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
+                      theme === "light"
+                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700"
+                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300 hover:text-white"
+                    }`}
                   >
                     <span>Attachments</span>
                   </button>
-                  <button 
-                    type="button" 
+                  <div 
+                    role="button"
+                    tabIndex={0}
                     onClick={() => alert("Lead WhatsApp details integrated successfully.")}
-                    className="p-2 bg-slate-900 hover:bg-[#070e1b] rounded-xl border border-indigo-950 text-[10px] font-extrabold uppercase text-indigo-400 flex items-center justify-center space-x-1.5 cursor-pointer"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        alert("Lead WhatsApp details integrated successfully.");
+                      }
+                    }}
+                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all focus:outline-none ${
+                      theme === "light"
+                        ? "bg-indigo-50 border-indigo-150 hover:bg-indigo-100 text-indigo-700"
+                        : "bg-slate-900 hover:bg-[#070e1b] border-indigo-950 text-indigo-400"
+                    }`}
                   >
                     <span>WhatsApp logs</span>
-                  </button>
-                </div>
+                  </div>
+                </div>      </div>
 
                 {/* Creation execution blocks */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-900 pt-4">

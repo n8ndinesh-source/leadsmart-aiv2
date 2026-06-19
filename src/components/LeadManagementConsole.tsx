@@ -1350,7 +1350,9 @@ export function LeadManagementConsole() {
                       max="100" 
                       value={selectedLead.intentScore || 0} 
                       onChange={(e) => handleUpdateLeadField(selectedLead.id, "intentScore", Number(e.target.value))}
-                      className="w-full accent-indigo-500 h-1 bg-slate-900 rounded-lg cursor-pointer"
+                      className={`w-full accent-indigo-500 h-1.5 rounded-lg cursor-pointer ${
+                        theme === "light" ? "bg-slate-200" : "bg-slate-800"
+                      }`}
                     />
                   </div>
                 </div>
@@ -1374,7 +1376,9 @@ export function LeadManagementConsole() {
                       max="100" 
                       value={selectedLead.leadScore || 0} 
                       onChange={(e) => handleUpdateLeadField(selectedLead.id, "leadScore", Number(e.target.value))}
-                      className="w-full accent-purple-500 h-1 bg-slate-900 rounded-lg cursor-pointer"
+                      className={`w-full accent-purple-500 h-1.5 rounded-lg cursor-pointer ${
+                        theme === "light" ? "bg-slate-200" : "bg-slate-800"
+                      }`}
                     />
                   </div>
                 </div>

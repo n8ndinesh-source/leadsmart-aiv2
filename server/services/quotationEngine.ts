@@ -95,6 +95,10 @@ export async function processScheduledQuotationDeliveries() {
       const quoteNum = quote.quotationNumber;
       const amountStr = `$${quote.grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+      // Compute application URL dynamically for client sharing links
+      const appUrl = (process.env.APP_URL || "https://leadsmart-automation.run.app").replace(/\/$/, "");
+      const viewUrl = `${appUrl}/quotation-document.html?id=${quote.id}`;
+
       // Generate the message template as specified in instructions
       const outboundMessage = `Hi ${leadName} 👋
 
@@ -106,7 +110,10 @@ ${quoteNum}
 Total Amount:
 ${amountStr}
 
-Please review the attached quotation and let us know if you have any questions.
+Please review your official branded quotation document and print / save as PDF here:
+${viewUrl}
+
+Let us know if you have any questions!
 
 Regards,
 ${companyName}`;
@@ -118,6 +125,7 @@ ${companyName}`;
       if (client.whatsappToken && client.whatsappPhoneId && recipientNumber) {
         try {
           const cleanPhone = recipientNumber.replace(/\D/g, "");
+          // Send Text message with download URL
           await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
             method: "POST",
             headers: {
@@ -132,6 +140,26 @@ ${companyName}`;
               text: { body: outboundMessage }
             })
           });
+
+          // Also deliver document/media attachment to native PDF preview
+          await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${client.whatsappToken}`
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: cleanPhone,
+              type: "document",
+              document: {
+                link: viewUrl,
+                filename: `Quotation_${quoteNum}.pdf`,
+                caption: `Official Quotation ${quoteNum} from ${companyName}`
+              }
+            })
+          });
         } catch (metaErr) {
           console.error(`[Quotation Delivery API] Meta Graph API delivery failed for ${quoteNum}:`, metaErr);
         }
@@ -142,7 +170,7 @@ ${companyName}`;
         data: {
           leadId: lead.id,
           direction: "OUT",
-          content: `${outboundMessage}\n\n[Attachment: PDF_Quotation_${quoteNum}.pdf]`,
+          content: `${outboundMessage}\n\n[Attachment: PDF Link: ${viewUrl}]`,
           timestamp: new Date()
         }
       });
