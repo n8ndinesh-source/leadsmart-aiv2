@@ -1,5 +1,20 @@
 import PDFDocument from "pdfkit";
 
+function parseBase64Image(dataStr: string): Buffer | null {
+  if (!dataStr) return null;
+  if (dataStr.startsWith("data:image")) {
+    const matches = dataStr.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+    if (matches && matches[2]) {
+      return Buffer.from(matches[2], "base64");
+    }
+  }
+  // If it's a solid base64 block without the header
+  if (!dataStr.includes("/") && !dataStr.includes(":") && dataStr.length > 100) {
+    return Buffer.from(dataStr, "base64");
+  }
+  return null;
+}
+
 function priceFormat(num: number) {
   if (!num || isNaN(num)) return "0.00";
   return Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -100,46 +115,64 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
       }
       doc.restore();
 
-      // 1. Top Graphic Banner Header (Diagonal Geometric Art matched to HTML theme)
-      doc.moveTo(0, 0)
-         .lineTo(595.28, 0)
-         .lineTo(595.28, 65)
-         .lineTo(430, 95)
-         .lineTo(220, 70)
-         .lineTo(0, 80)
-         .closePath()
-         .fill(primaryColor);
+      // 1. Top Graphic Banner Header (Render custom template headerBanner if present; otherwise fallback to geometric art)
+      let hasHeaderBanner = false;
+      if (template?.headerBanner) {
+        try {
+          const headerBin = parseBase64Image(template.headerBanner);
+          if (headerBin) {
+            doc.image(headerBin, 0, 0, { width: 595.28, height: 90 });
+            hasHeaderBanner = true;
+          } else if (template.headerBanner.startsWith("http")) {
+            doc.image(template.headerBanner, 0, 0, { width: 595.28, height: 90 });
+            hasHeaderBanner = true;
+          }
+        } catch (imgErr) {
+          console.warn("Could not draw template.headerBanner in PDF:", imgErr);
+        }
+      }
 
-      // Gold accent decorative diagonal ribbon layer
-      doc.moveTo(0, 80)
-         .lineTo(220, 70)
-         .lineTo(430, 95)
-         .lineTo(595.28, 65)
-         .lineTo(595.28, 80)
-         .lineTo(430, 110)
-         .lineTo(220, 85)
-         .lineTo(0, 95)
-         .closePath()
-         .fill(goldAccent);
+      if (!hasHeaderBanner) {
+        doc.moveTo(0, 0)
+           .lineTo(595.28, 0)
+           .lineTo(595.28, 65)
+           .lineTo(430, 95)
+           .lineTo(220, 70)
+           .lineTo(0, 80)
+           .closePath()
+           .fill(primaryColor);
 
-      // Translucent white vector highlights
-      doc.save();
-      doc.fillOpacity(0.15);
-      doc.moveTo(120, 0)
-         .lineTo(180, 30)
-         .lineTo(220, 0)
-         .closePath()
-         .fill("#FFFFFF");
-      doc.restore();
+        // Gold accent decorative diagonal ribbon layer
+        doc.moveTo(0, 80)
+           .lineTo(220, 70)
+           .lineTo(430, 95)
+           .lineTo(595.28, 65)
+           .lineTo(595.28, 80)
+           .lineTo(430, 110)
+           .lineTo(220, 85)
+           .lineTo(0, 95)
+           .closePath()
+           .fill(goldAccent);
 
-      doc.save();
-      doc.fillOpacity(0.10);
-      doc.moveTo(350, 0)
-         .lineTo(390, 20)
-         .lineTo(440, 0)
-         .closePath()
-         .fill("#FFFFFF");
-      doc.restore();
+        // Translucent white vector highlights
+        doc.save();
+        doc.fillOpacity(0.15);
+        doc.moveTo(120, 0)
+           .lineTo(180, 30)
+           .lineTo(220, 0)
+           .closePath()
+           .fill("#FFFFFF");
+        doc.restore();
+
+        doc.save();
+        doc.fillOpacity(0.10);
+        doc.moveTo(350, 0)
+           .lineTo(390, 20)
+           .lineTo(440, 0)
+           .closePath()
+           .fill("#FFFFFF");
+        doc.restore();
+      }
 
       // Circular Logo Badge / Icon bounding box
       doc.circle(64, 92, 24).fill("#FFFFFF");
@@ -359,40 +392,62 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
       doc.fillColor("#0F172A").fontSize(7.5).font("Helvetica-Bold").text(totalWords.toUpperCase(), rightXLabel, calcY, { width: boxWidth, lineGap: 1.5 });
 
       // 7. Footer Contact Bar & Double Ribbon diagonal geometric paths
-      const footerY = 770;
-      doc.lineWidth(0.5).strokeColor("#E2E8F0").moveTo(40, footerY).lineTo(555, footerY).stroke();
+      const footerY = 758;
+      
+      const brandLower = (template?.companyName || client?.companyName || "").toLowerCase().replace(/\s+/g, "");
+      doc.fillColor("#64748B").fontSize(7).font("Helvetica-Bold");
+      doc.text(`HQ: www.${brandLower || "leadsmartecommerce"}.com`, 40, footerY, { lineBreak: false });
+      doc.text(`Mob: ${client?.phone || "+91 99999 99999"}`, 240, footerY, { align: "center", width: 115, lineBreak: false });
+      doc.text(`Email: sales@${brandLower || "thevelocity"}.com`, 400, footerY, { align: "right", width: 155, lineBreak: false });
+
+      doc.lineWidth(0.5).strokeColor("#E2E8F0").moveTo(40, footerY + 12).lineTo(555, footerY + 12).stroke();
 
       // Temporarily expand bottom margin so absolute footer positioning does not trigger automatic multi-page breaks
       doc.page.margins.bottom = -150;
 
-      const brandLower = (template?.companyName || client?.companyName || "").toLowerCase().replace(/\s+/g, "");
-      doc.fillColor("#64748B").fontSize(7).font("Helvetica-Bold");
-      doc.text(`HQ: www.${brandLower || "leadsmartecommerce"}.com`, 40, footerY + 8, { lineBreak: false });
-      doc.text(`Mob: ${client?.phone || "+91 99999 99999"}`, 240, footerY + 8, { align: "center", width: 115, lineBreak: false });
-      doc.text(`Email: sales@${brandLower || "leadsmart"}.com`, 400, footerY + 8, { align: "right", width: 155, lineBreak: false });
+      const footerStartY = 776;
+      const footerHeight = 841.89 - footerStartY;
+      let hasFooterBanner = false;
 
-      // Geometrical layered diagonal ribbons matching HTML footer
-      const ribbonTop = 793.89;
+      if (template?.footerBanner) {
+        try {
+          const footerBin = parseBase64Image(template.footerBanner);
+          if (footerBin) {
+            doc.image(footerBin, 0, footerStartY, { width: 595.28, height: footerHeight });
+            hasFooterBanner = true;
+          } else if (template.footerBanner.startsWith("http")) {
+            doc.image(template.footerBanner, 0, footerStartY, { width: 595.28, height: footerHeight });
+            hasFooterBanner = true;
+          }
+        } catch (imgErr) {
+          console.warn("Could not draw template.footerBanner in PDF:", imgErr);
+        }
+      }
 
-      // Gold diagonal ribbon path matching d="M0 15 L180 8 L390 22 L595 5 V20 H0 Z"
-      doc.moveTo(0, ribbonTop + 15)
-         .lineTo(180, ribbonTop + 8)
-         .lineTo(390, ribbonTop + 22)
-         .lineTo(595.28, ribbonTop + 5)
-         .lineTo(595.28, ribbonTop + 20)
-         .lineTo(0, ribbonTop + 20)
-         .closePath()
-         .fill(goldAccent);
+      if (!hasFooterBanner) {
+        // Geometrical layered diagonal ribbons matching HTML footer
+        const ribbonTop = footerStartY + 15;
 
-      // Dark green diagonal ribbon path matching d="M0 20 L180 13 L390 27 L595 10 V48 H0 Z"
-      doc.moveTo(0, ribbonTop + 20)
-         .lineTo(180, ribbonTop + 13)
-         .lineTo(390, ribbonTop + 27)
-         .lineTo(595.28, ribbonTop + 10)
-         .lineTo(595.28, 841.89)
-         .lineTo(0, 841.89)
-         .closePath()
-         .fill(primaryColor);
+        // Gold diagonal ribbon path matching d="M0 15 L180 8 L390 22 L595 5 V20 H0 Z"
+        doc.moveTo(0, ribbonTop + 15)
+           .lineTo(180, ribbonTop + 8)
+           .lineTo(390, ribbonTop + 22)
+           .lineTo(595.28, ribbonTop + 5)
+           .lineTo(595.28, ribbonTop + 20)
+           .lineTo(0, ribbonTop + 20)
+           .closePath()
+           .fill(goldAccent);
+
+        // Dark green diagonal ribbon path matching d="M0 20 L180 13 L390 27 L595 10 V48 H0 Z"
+        doc.moveTo(0, ribbonTop + 20)
+           .lineTo(180, ribbonTop + 13)
+           .lineTo(390, ribbonTop + 27)
+           .lineTo(595.28, ribbonTop + 10)
+           .lineTo(595.28, 841.89)
+           .lineTo(0, 841.89)
+           .closePath()
+           .fill(primaryColor);
+      }
 
       // Finalize the PDF kits pipeline stream
       doc.end();
