@@ -362,6 +362,9 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
       const footerY = 770;
       doc.lineWidth(0.5).strokeColor("#E2E8F0").moveTo(40, footerY).lineTo(555, footerY).stroke();
 
+      // Temporarily expand bottom margin so absolute footer positioning does not trigger automatic multi-page breaks
+      doc.page.margins.bottom = -150;
+
       const brandLower = (template?.companyName || client?.companyName || "").toLowerCase().replace(/\s+/g, "");
       doc.fillColor("#64748B").fontSize(7).font("Helvetica-Bold");
       doc.text(`HQ: www.${brandLower || "leadsmartecommerce"}.com`, 40, footerY + 8, { lineBreak: false });

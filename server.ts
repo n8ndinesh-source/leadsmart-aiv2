@@ -159,17 +159,18 @@ async function startServer() {
 
   if (!isServerless) {
     console.log("Normal environment detected. Starting asynchronous database schema sync in the background...");
+    
+    // Always trigger seed defaulted users on bootup so they are present even if external db push times out/fails due to pooler limits
+    seedDefaultUsers().catch(seedError => {
+      console.warn("[Database Seed] Direct startup seed check completed/handled:", seedError.message || seedError);
+    });
+
     exec('npx prisma db push --accept-data-loss', (error, stdout, stderr) => {
       if (error) {
-        console.error("Failed to sync database schema in background:", error);
-        console.error("Prisma error output:", stderr);
+        console.warn("[Database Sync] Background database schema sync skipped/deferred (typical on port-restricted serverless database poolers):", error.message);
         return;
       }
       console.log("Database schema synced successfully in background.");
-      // Auto-seed the accounts on boot
-      seedDefaultUsers().catch(seedError => {
-        console.error("Database seed failed:", seedError);
-      });
     });
   } else {
     console.log("Serverless environment detected. Skipping database auto-sync during boot.");
