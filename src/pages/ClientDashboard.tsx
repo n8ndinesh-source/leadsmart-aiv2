@@ -984,6 +984,10 @@ export default function ClientDashboard() {
                         <span className="text-white font-medium">{ownerName}</span>
                       </div>
                       <div className="flex justify-between py-1 bg-[#02050b]/20 px-2 rounded">
+                        <span className="text-slate-500">Owner WhatsApp</span>
+                        <span className="text-white font-mono text-emerald-400">{ownerWhatsApp || "Not Configured"}</span>
+                      </div>
+                      <div className="flex justify-between py-1 bg-[#02050b]/20 px-2 rounded">
                         <span className="text-slate-500">Business Model</span>
                         <span className="text-indigo-300 font-semibold">{businessType || "N/A"}</span>
                       </div>
@@ -1059,7 +1063,7 @@ export default function ClientDashboard() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Owner Full Name *</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Owner Name *</label>
                         <input
                           type="text"
                           value={ownerName}
@@ -1067,6 +1071,7 @@ export default function ClientDashboard() {
                           className="w-full bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-white font-light"
                           required
                         />
+                        <p className="text-[9px] text-slate-500 italic">Personalizes notifications and customized client outreach templates.</p>
                       </div>
                     </div>
 
@@ -1080,6 +1085,7 @@ export default function ClientDashboard() {
                           placeholder="e.g. +91 9876543210"
                           className="w-full bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-white font-mono"
                         />
+                        <p className="text-[9px] text-emerald-500 italic">Crucial: Used by the AI communications engine to interact with you regarding client custom inquiries.</p>
                       </div>
 
                       <div className="space-y-1.5">

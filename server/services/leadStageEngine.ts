@@ -7,6 +7,7 @@ export const SUPPORTED_STAGES = [
   "NEW",
   "INQUIRY",
   "QUALIFICATION",
+  "CUSTOM_ORDER",
   "QUOTATION",
   "NEGOTIATION",
   "FOLLOWUP",
@@ -194,6 +195,7 @@ export function mapStageToStatus(stage: string): string {
     case "NEW": return "New";
     case "INQUIRY": return "Interested";
     case "QUALIFICATION": return "Qualified";
+    case "CUSTOM_ORDER": return "Custom Order";
     case "QUOTATION": return "Quotation Sent";
     case "NEGOTIATION": return "Negotiation";
     case "FOLLOWUP": return "Contacted";
@@ -209,6 +211,7 @@ export function mapStatusToStage(status: string): string {
     case "Contacted": return "FOLLOWUP";
     case "Interested": return "INQUIRY";
     case "Qualified": return "QUALIFICATION";
+    case "Custom Order": return "CUSTOM_ORDER";
     case "Quotation Sent": return "QUOTATION";
     case "Negotiation": return "NEGOTIATION";
     case "Won": return "WON";

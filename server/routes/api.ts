@@ -3188,6 +3188,217 @@ An official Quotation document has been compiled and dispatched via WhatsApp.`,
   }
 });
 
+// POST /api/leads/:leadId/resolve-custom-order - Resolve custom order directly from Lead page
+router.post("/leads/:leadId/resolve-custom-order", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { leadId } = req.params;
+    const { productName, skuCode, unitPrice } = req.body;
+
+    const parsedPrice = parseFloat(unitPrice);
+    if (!productName || isNaN(parsedPrice) || parsedPrice <= 0) {
+      return res.status(400).json({ error: "Missing required inputs or invalid price." });
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      include: { client: true }
+    });
+    if (!lead) {
+      return res.status(404).json({ error: "Lead not found." });
+    }
+
+    const client = lead.client;
+    const bizType = client.businessType || "Manufacturing";
+
+    // 1. Create the custom product record in products catalog
+    const productRecord = await prisma.productRecord.create({
+      data: {
+        clientId: client.id,
+        name: productName,
+        status: "ACTIVE",
+        businessType: bizType
+      }
+    });
+
+    const customFields = await prisma.productField.findMany({
+      where: { clientId: client.id }
+    });
+    
+    let priceField = customFields.find(f => f.fieldName.toLowerCase().includes("price") || f.fieldName.toLowerCase().includes("rate"));
+    if (!priceField) {
+      priceField = await prisma.productField.create({
+        data: {
+          clientId: client.id,
+          fieldName: "Unit Price",
+          fieldType: "NUMBER"
+        }
+      });
+    }
+
+    await prisma.productRecordValue.create({
+      data: {
+        productRecordId: productRecord.id,
+        productFieldId: priceField.id,
+        value: String(parsedPrice)
+      }
+    });
+
+    // 2. Extract specs JSON or parse from customOrderSpecs
+    let specs: any = {};
+    if (lead.customOrderSpecs) {
+      try {
+        specs = JSON.parse(lead.customOrderSpecs);
+      } catch (_) {}
+    }
+
+    const quantity = specs.quantity || 5000;
+    const subtotal = quantity * parsedPrice;
+    const gstPercent = 18;
+    const gstAmount = subtotal * (gstPercent / 100);
+    const grandTotal = subtotal + gstAmount;
+    const quotationNumber = `QT-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // 3. Generate the quotation in PENDING_APPROVAL status (which means it's ready for owner approval)
+    const quote = await prisma.quotation.create({
+      data: {
+        clientId: client.id,
+        leadId: lead.id,
+        quotationNumber,
+        status: "PENDING_APPROVAL",
+        products: JSON.stringify([{
+          productName: productName,
+          description: `Custom order specs: ${specs.size || "Standard"}, automatically converted by catalog override.`,
+          quantity,
+          unitPrice: parsedPrice,
+          discount: 0,
+          gst: gstPercent,
+          tax: 0,
+          deliveryCharges: 0
+        }]),
+        subtotal,
+        discountPercent: 0,
+        discountAmount: 0,
+        gstPercent,
+        gstAmount,
+        taxPercent: 0,
+        taxAmount: 0,
+        deliveryCharges: 0,
+        grandTotal
+      }
+    });
+
+    // 4. Update the Lead status to "Qualified" and its stage to "QUALIFICATION", clear customOrderRequired flag
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        customOrderRequired: false,
+        status: "Qualified",
+        currentStage: "QUALIFICATION"
+      }
+    });
+
+    // 5. Generate Owner Alert for quotation approval
+    const recipientPhone = client.approvalNotificationNumber || client.ownerWhatsApp || "+91 9876543210";
+    const alertMessage = `📄 Quotation Approval Required (Custom Order Resolved)
+
+Lead:
+${lead.name}
+
+Product:
+${productName}
+
+Size:
+${specs.size || "Standard"}
+
+Quantity:
+${quantity}
+
+Amount:
+₹${grandTotal.toLocaleString('en-IN')}
+
+Quotation ID:
+${quotationNumber}`;
+
+    const approvalAlert = await prisma.ownerAlert.create({
+      data: {
+        clientId: client.id,
+        leadId: lead.id,
+        title: "📄 Quotation Approval Required",
+        message: alertMessage,
+        type: "QUOTATION_APPROVAL",
+        status: "PENDING",
+        amount: grandTotal,
+        quoteId: quote.id,
+        specs: JSON.stringify(specs)
+      }
+    });
+
+    // If there was an old pending CUSTOM_ORDER_ALERT for this lead, mark it resolved/approved
+    try {
+      await prisma.ownerAlert.updateMany({
+        where: {
+          leadId: lead.id,
+          type: "CUSTOM_ORDER_ALERT",
+          status: "PENDING"
+        },
+        data: {
+          status: "APPROVED"
+        }
+      });
+    } catch (_) {}
+
+    // 6. Dispatch WhatsApp notification to Owner's real WhatsApp number
+    if (client.whatsappToken && client.whatsappPhoneId && recipientPhone) {
+      try {
+        const cleanPhone = recipientPhone.replace(/\D/g, "");
+        if (cleanPhone) {
+          console.log(`[WhatsApp Dispatch] Dispatching approval alert to Owner for custom order resolution: ${cleanPhone}`);
+          await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${client.whatsappToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              to: cleanPhone,
+              type: "text",
+              text: { body: alertMessage }
+            })
+          });
+        }
+      } catch (dispatchErr) {
+        console.error(`[WhatsApp Dispatch Error] Failed to send approval alert via WhatsApp to Owner:`, dispatchErr);
+      }
+    }
+
+    // 7. Activity Logs
+    await prisma.leadActivity.create({
+      data: {
+        leadId: lead.id,
+        activityType: "CREATED",
+        description: `Custom order resolved manually. Added custom product "${productName}" to catalog list. Generated quotation ${quotationNumber} pending approval.`
+      }
+    });
+
+    await prisma.leadStageHistory.create({
+      data: {
+        leadId: lead.id,
+        oldStage: "CUSTOM_ORDER",
+        newStage: "QUALIFICATION",
+        reason: "Custom product added to catalog. Generated quote and transitioned out of custom order backlog.",
+        confidence: 100
+      }
+    });
+
+    return res.json({ success: true, message: "Custom product created in catalog. Quotation generated and owner approval notification sent!" });
+
+  } catch (error: any) {
+    console.error("Error in resolve-custom-order route:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // 3. POST /send-message - Outbound Send Message API
 router.post("/send-message", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {

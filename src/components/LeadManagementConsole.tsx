@@ -15,6 +15,7 @@ const PIPELINE_STATUSES = [
   "Contacted",
   "Interested",
   "Qualified",
+  "Custom Order",
   "Quotation Sent",
   "Negotiation",
   "Won",
@@ -69,6 +70,13 @@ export function LeadManagementConsole() {
 
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
   const [quotationLead, setQuotationLead] = useState<any | null>(null);
+  
+  // Custom Order Modal State
+  const [resolveCustomLead, setResolveCustomLead] = useState<any | null>(null);
+  const [currCustomProdName, setCurrCustomProdName] = useState("");
+  const [currCustomProdSku, setCurrCustomProdSku] = useState("");
+  const [currCustomProdPrice, setCurrCustomProdPrice] = useState("12.00");
+  const [isResolvingCustom, setIsResolvingCustom] = useState(false);
   
   // Drag and Drop State
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
@@ -198,6 +206,23 @@ export function LeadManagementConsole() {
       setChecklistResult(null);
     }
   }, [selectedLeadId]);
+
+  const handleOpenCustomOrder = (lead: any) => {
+    let specsObj: any = {};
+    if (lead.customOrderSpecs) {
+      try {
+        specsObj = JSON.parse(lead.customOrderSpecs);
+      } catch (_) {}
+    }
+    setResolveCustomLead(lead);
+    setCurrCustomProdName(specsObj.product || "Custom Bagasse Plates");
+    setCurrCustomProdPrice("12.00");
+    
+    // Auto generate neat sequence identifier
+    const firstLetter = (specsObj.product?.[0] || "P").toUpperCase();
+    const endingLetter = (specsObj.product?.[specsObj.product.length - 1] || "G").toUpperCase();
+    setCurrCustomProdSku(`${firstLetter}001${endingLetter}`);
+  };
 
   const handleSendManualMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -989,6 +1014,17 @@ export function LeadManagementConsole() {
                               <span>Quote</span>
                             </button>
                           )}
+                          {lead.status.toLowerCase() === "custom order" && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCustomOrder(lead)}
+                              className="p-1 px-2 text-fuchsia-400 bg-fuchsia-600/10 hover:bg-fuchsia-600 hover:text-white rounded text-[10px] uppercase font-bold flex items-center cursor-pointer transition-all animate-pulse"
+                              title="Resolve Custom Order Details"
+                            >
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              <span>Custom Order</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => setSelectedLeadId(lead.id)}
                             className="p-1 px-2 text-indigo-400 hover:bg-slate-800 rounded text-[10px] uppercase font-bold flex items-center cursor-pointer transition-colors"
@@ -1112,6 +1148,19 @@ export function LeadManagementConsole() {
                                   title="Construct Quotation Proposal"
                                 >
                                   <FileText className="w-2.5 h-2.5" />
+                                </button>
+                              )}
+                              {card.status.toLowerCase() === "custom order" && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenCustomOrder(card);
+                                  }}
+                                  className="p-1 rounded bg-fuchsia-600/20 hover:bg-fuchsia-600 text-fuchsia-400 hover:text-white transition-all shrink-0 cursor-pointer animate-pulse"
+                                  title="Resolve Custom Order Details"
+                                >
+                                  <Sparkles className="w-2.5 h-2.5" />
                                 </button>
                               )}
                             </div>
@@ -1246,6 +1295,29 @@ export function LeadManagementConsole() {
           {/* Details Scrollable Stream */}
           {sidebarTab === "profile" && (
             <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
+
+              {/* CUSTOM ORDER RESOLVER WIDGET */}
+              {selectedLead.status.toLowerCase() === "custom order" && (
+                <div className="p-4 rounded-xl border flex flex-col space-y-3 transition-all bg-fuchsia-950/20 border-fuchsia-500/30 text-fuchsia-350 shadow-md shadow-fuchsia-950/10 mb-4 animate-in fade-in slide-in-from-top-3">
+                  <div className="flex items-start space-x-2.5">
+                    <Sparkles className="w-4.5 h-4.5 text-fuchsia-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold uppercase text-white font-display">Custom Order Hub</h4>
+                      <p className="text-[10px] text-fuchsia-200 leading-normal mt-0.5 font-light">
+                        This buyer has requested custom specifications not found in your catalog. Check details to configure.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCustomOrder(selectedLead)}
+                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-lg shadow-fuchsia-650/10 active:scale-95 animate-pulse"
+                  >
+                    <span>Launch Custom Order Wizard</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* QUOTATION PROPOSAL WIDGET */}
               <div className={`p-4 rounded-xl border flex flex-col space-y-3 transition-all ${
@@ -2308,6 +2380,207 @@ export function LeadManagementConsole() {
         />
       )}
 
+      {/* CUSTOM ORDER RESOLUTION MODAL */}
+      {resolveCustomLead && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className={`border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-all ${
+            theme === "light"
+              ? "bg-white border-slate-200 text-slate-800"
+              : "bg-[#0b1329] border border-fuchsia-900/45 text-slate-200"
+          }`}>
+            {/* Header */}
+            <div className={`px-6 py-4 border-b flex items-center justify-between transition-all ${
+              theme === "light"
+                ? "bg-fuchsia-50/50 border-slate-100"
+                : "bg-gradient-to-r from-fuchsia-950/20 to-indigo-950/20 border-slate-900"
+            }`}>
+              <div className="flex items-center space-x-2">
+                <Sparkles className={`w-5 h-5 ${theme === "light" ? "text-fuchsia-600" : "text-fuchsia-400"}`} />
+                <h3 className={`font-display font-medium text-base uppercase tracking-wider ${theme === "light" ? "text-slate-800" : "text-white"}`}>Custom Order Wizard</h3>
+              </div>
+              <button 
+                onClick={() => setResolveCustomLead(null)}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  theme === "light"
+                    ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                    : "text-slate-400 hover:text-white hover:bg-slate-950"
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5">
+              {/* Lead Summary */}
+              <div className={`border rounded-xl p-3.5 space-y-2 transition-all ${
+                theme === "light"
+                  ? "bg-slate-50 border-slate-200"
+                  : "bg-[#030611] border border-slate-900"
+              }`}>
+                <div className="flex justify-between items-center text-[10px] text-slate-500 font-mono uppercase tracking-wide">
+                  <span>Lead Account</span>
+                  <span className={`${theme === "light" ? "text-fuchsia-600" : "text-fuchsia-400"} font-bold`}>Custom Request Detected</span>
+                </div>
+                <div className={`font-bold text-sm ${theme === "light" ? "text-slate-800" : "text-white"}`}>{resolveCustomLead.name}</div>
+                <div className={`text-xs font-light ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>{resolveCustomLead.companyName || "No Company Specified"}</div>
+              </div>
+
+              {/* Customer Order Details Section */}
+              <div className="space-y-2">
+                <h4 className={`text-[10px] font-bold uppercase tracking-wider ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>Customer Order Details</h4>
+                <div className={`border rounded-xl p-4 space-y-3 font-sans transition-all ${
+                  theme === "light"
+                    ? "bg-fuchsia-50/30 border-fuchsia-200/50"
+                    : "bg-fuchsia-950/10 border border-fuchsia-900/30"
+                }`}>
+                  {(() => {
+                    let specs: any = {};
+                    try {
+                      if (resolveCustomLead.customOrderSpecs) {
+                        specs = JSON.parse(resolveCustomLead.customOrderSpecs);
+                      }
+                    } catch (_) {}
+                    return (
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <span className={`${theme === "light" ? "text-slate-500" : "text-slate-400"} block mb-0.5`}>Requested Product</span>
+                          <span className={`font-semibold ${theme === "light" ? "text-slate-800" : "text-white"}`}>{specs.product || "Custom Specs Product"}</span>
+                        </div>
+                        <div>
+                          <span className={`${theme === "light" ? "text-slate-500" : "text-slate-400"} block mb-0.5`}>Size/Specs</span>
+                          <span className={`font-semibold ${theme === "light" ? "text-slate-800" : "text-white"}`}>{specs.size || "Standard Size"}</span>
+                        </div>
+                        <div>
+                          <span className={`${theme === "light" ? "text-slate-500" : "text-slate-400"} block mb-0.5`}>Requested Qty</span>
+                          <span className={`${theme === "light" ? "text-emerald-700 font-extrabold" : "text-emerald-400 font-bold"} font-mono`}>{(specs.quantity || 5000).toLocaleString()} units</span>
+                        </div>
+                        <div>
+                          <span className={`${theme === "light" ? "text-slate-500" : "text-slate-400"} block mb-0.5`}>System Status</span>
+                          <span className={`${theme === "light" ? "text-fuchsia-600" : "text-fuchsia-400"} font-mono font-bold uppercase`}>Missing from Catalog</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Add Custom Product Form */}
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  setIsResolvingCustom(true);
+                  const res = await api.post<any>(`/leads/${resolveCustomLead.id}/resolve-custom-order`, {
+                    productName: currCustomProdName,
+                    skuCode: currCustomProdSku,
+                    unitPrice: currCustomProdPrice
+                  });
+                  alert(res.message || "Custom Product configured successfully and sent to owner for approval!");
+                  setResolveCustomLead(null);
+                  
+                  // Refresh leads
+                  const freshLeads = await api.get<any[]>("/leads");
+                  setLeads(freshLeads || []);
+                  
+                  // If selected, refresh detail sidebar too
+                  if (selectedLeadId === resolveCustomLead.id) {
+                    setSelectedLeadId(null);
+                    setTimeout(() => setSelectedLeadId(resolveCustomLead.id), 100);
+                  }
+                } catch (err: any) {
+                  alert(err.message || "Failed to resolve custom order.");
+                } finally {
+                  setIsResolvingCustom(false);
+                }
+              }} className="space-y-4">
+                <div className="space-y-3.5">
+                  <div className="space-y-1.5">
+                    <label className={`block text-[10px] font-bold uppercase tracking-wider ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>Add to Product List (Product Name) *</label>
+                    <input 
+                      type="text"
+                      value={currCustomProdName}
+                      onChange={(e) => setCurrCustomProdName(e.target.value)}
+                      className={`w-full focus:border-fuchsia-500 rounded-lg p-2.5 outline-none text-xs font-light transition-all border ${
+                        theme === "light"
+                          ? "bg-white border-slate-200 text-slate-800"
+                          : "bg-[#030611] border border-slate-900 text-white"
+                      }`}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className={`block text-[10px] font-bold uppercase tracking-wider ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>SKU Code *</label>
+                      <input 
+                        type="text"
+                        value={currCustomProdSku}
+                        onChange={(e) => setCurrCustomProdSku(e.target.value)}
+                        className={`w-full focus:border-fuchsia-500 rounded-lg p-2.5 outline-none text-xs font-mono transition-all border ${
+                          theme === "light"
+                            ? "bg-white border-slate-200 text-slate-800"
+                            : "bg-[#030611] border border-slate-900 text-white"
+                        }`}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className={`block text-[10px] font-bold uppercase tracking-wider ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>Unit Price (INR) *</label>
+                      <input 
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={currCustomProdPrice}
+                        onChange={(e) => setCurrCustomProdPrice(e.target.value)}
+                        className={`w-full focus:border-fuchsia-500 rounded-lg p-2.5 outline-none text-xs font-mono transition-all border ${
+                          theme === "light"
+                            ? "bg-white border-slate-200 text-slate-800"
+                            : "bg-[#030611] border border-slate-900 text-white"
+                        }`}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`pt-4 border-t flex items-center justify-between transition-all ${
+                  theme === "light" ? "border-slate-100" : "border-slate-900/60"
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => setResolveCustomLead(null)}
+                    className={`py-2 px-4 rounded-xl font-medium text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                      theme === "light"
+                        ? "bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800"
+                        : "bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isResolvingCustom}
+                    className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider flex items-center space-x-2 shadow-lg shadow-fuchsia-950/20 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {isResolvingCustom ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Product Added</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -2323,6 +2596,8 @@ function getStatusColors(status: string) {
       return { bg: "bg-cyan-950/20", text: "text-cyan-400", border: "border-cyan-900/40" };
     case "Qualified":
       return { bg: "bg-amber-950/20", text: "text-amber-400", border: "border-amber-900/40" };
+    case "Custom Order":
+      return { bg: "bg-fuchsia-950/25", text: "text-fuchsia-400", border: "border-fuchsia-900/40" };
     case "Quotation Sent":
       return { bg: "bg-indigo-950/20", text: "text-indigo-400", border: "border-indigo-900/30" };
     case "Negotiation":
@@ -2359,6 +2634,8 @@ function getStatusHeaderColors(status: string) {
       return { dot: "bg-cyan-500" };
     case "Qualified":
       return { dot: "bg-amber-500" };
+    case "Custom Order":
+      return { dot: "bg-fuchsia-500" };
     case "Quotation Sent":
       return { dot: "bg-indigo-500" };
     case "Negotiation":

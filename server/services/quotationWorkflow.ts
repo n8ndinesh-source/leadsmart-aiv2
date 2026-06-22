@@ -196,7 +196,7 @@ Return the matching ID as JSON {\"matchedId\": \"some-uuid\" | null}. If no high
         }
       });
 
-      // Send WhatsApp approval notification to owner (recorded in simulated OwnerAlert)
+      // Send WhatsApp approval notification to owner (recorded in simulated OwnerAlert & sent via Meta Graph API if configured)
       const recipientPhone = client.approvalNotificationNumber || client.ownerWhatsApp || "+91 9876543210";
       const leadName = lead.name;
 
@@ -234,21 +234,48 @@ ${quotationNumber}`;
         }
       });
 
+      // Actual WhatsApp notification dispatch to Owner's real WhatsApp number
+      if (client.whatsappToken && client.whatsappPhoneId && recipientPhone) {
+        try {
+          const cleanPhone = recipientPhone.replace(/\D/g, "");
+          if (cleanPhone) {
+            console.log(`[WhatsApp Dispatch] Dispatching approval alert to Owner: ${cleanPhone}`);
+            await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${client.whatsappToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                messaging_product: "whatsapp",
+                to: cleanPhone,
+                type: "text",
+                text: { body: alertMessage }
+              })
+            });
+          }
+        } catch (dispatchErr) {
+          console.error(`[WhatsApp Dispatch Error] Failed to send approval alert via WhatsApp to Owner:`, dispatchErr);
+        }
+      }
+
       console.log(`[Quotation Workflow] Generated Quotation ${quotationNumber} with PENDING_APPROVAL status. Alert ID: ${alert.id}`);
 
     } else {
       console.log(`[Quotation Workflow Missing] Product "${specs.product}" not found. Executing Scenario 2.`);
 
-      // Flag custom order mismatch on Lead
+      // Flag custom order mismatch on Lead - transition status to "Custom Order" and stage to "CUSTOM_ORDER"
       await prisma.lead.update({
         where: { id: lead.id },
         data: {
           customOrderRequired: true,
-          status: "Qualified" // Upgrade status to Qualified as requested
+          status: "Custom Order",
+          currentStage: "CUSTOM_ORDER"
         }
       });
 
       // Send WhatsApp custom order alert to owner
+      const recipientPhone = client.approvalNotificationNumber || client.ownerWhatsApp || "+91 9876543210";
       const alertMessage = `🚨 Custom Order Alert!
 
 Lead:
@@ -277,12 +304,48 @@ This product does *not* exist in your Products database. Owner action is require
         }
       });
 
+      // Actual WhatsApp notification dispatch to Owner's real WhatsApp number for custom orders
+      if (client.whatsappToken && client.whatsappPhoneId && recipientPhone) {
+        try {
+          const cleanPhone = recipientPhone.replace(/\D/g, "");
+          if (cleanPhone) {
+            console.log(`[WhatsApp Dispatch] Dispatching custom order alert to Owner: ${cleanPhone}`);
+            await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${client.whatsappToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                messaging_product: "whatsapp",
+                to: cleanPhone,
+                type: "text",
+                text: { body: alertMessage }
+              })
+            });
+          }
+        } catch (dispatchErr) {
+          console.error(`[WhatsApp Dispatch Error] Failed to send custom order alert via WhatsApp to Owner:`, dispatchErr);
+        }
+      }
+
       // Add a nice visual activity note to lead timelines
       await prisma.leadActivity.create({
         data: {
           leadId: lead.id,
           activityType: "STATUS_CHANGE",
           description: `CRM AI Warning: Custom order "${specs.product}" (size: ${specs.size || "N/A"}, qty: ${specs.quantity || "N/A"}) requested but NOT found in matching product listings. Owner alerts sent.`
+        }
+      });
+
+      // Log Stage history Node
+      await prisma.leadStageHistory.create({
+        data: {
+          leadId: lead.id,
+          oldStage: lead.currentStage || "NEW",
+          newStage: "CUSTOM_ORDER",
+          reason: "Product is missing from standard catalog. Transitioning to CUSTOM_ORDER pipeline stage.",
+          confidence: 100
         }
       });
 
