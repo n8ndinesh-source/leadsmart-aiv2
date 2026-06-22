@@ -11,6 +11,11 @@ export async function evaluatePipelineStateAfterMessage(leadId: string, directio
 
     if (!lead) return;
 
+    if (lead.customOrderRequired) {
+      console.log(`[Pipeline Hooks] Lead "${lead.name}" has customOrderRequired: true. Keeping Custom Order state, skipping auto pipeline updates.`);
+      return;
+    }
+
     if (direction === "IN") {
       // Rule 1: Customer asks for a quote/quotation -> Set status to 'Qualified' and currentStage to 'QUALIFICATION'
       const lowContent = content.toLowerCase();

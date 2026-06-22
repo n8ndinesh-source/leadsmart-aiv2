@@ -22,23 +22,29 @@ interface ExtractedSpecs {
 /**
  * Extracts product specifications from a message using Gemini AI.
  */
-export async function extractSpecsFromMessage(message: string): Promise<ExtractedSpecs> {
+export async function extractSpecsFromMessage(message: string, context?: string): Promise<ExtractedSpecs> {
   try {
-    console.log(`[AI Spec Extractor] Extracting product specifications for message: "${message}"`);
+    console.log(`[AI Spec Extractor] Extracting product specifications for message: "${message}". Context provided: ${!!context}`);
     
     const systemInstruction = `You are an expert product spec parser. Extract product request specifications from user messages.
+We also provide some recent conversation context to help you resolve pronouns or implicit products (e.g., if the assistant asks "what size bagasse plate do you want?" and the customer replies "10 inches, no compartment", then the product is "Bagasse Plate", the size is "10 inches, no compartment").
+
 Always return a raw JSON object matching this schema EXACTLY:
 {
   "isProductRequest": boolean, // True if the message specifies or requests a specific product/item, size, and/or quantity for an order or quotation.
-  "product": string | null,    // Name of the product (e.g., "Paper Bag", "Corrugated Box" etc.)
-  "size": string | null,       // Format of dimensions/size (e.g., "H28×W12×G5", "12x12" etc.)
+  "product": string | null,    // Name of the product (e.g., "Paper Bag", "Corrugated Box", "Bagasse Plate", etc.)
+  "size": string | null,       // Format of dimensions/size (e.g., "H28×W12×G5", "10 inches", "12x12" etc.)
   "quantity": number | null    // Numerical quantity requested (e.g., 5000), parsed to integer.
 }
 Do not include any markdown format tags like \`\`\`json. Return only the raw JSON string.`;
 
+    const instructionsAndContent = context
+      ? `Recent Conversation Context:\n${context}\n\nLatest Customer Message to parse:\n"${message}"`
+      : message;
+
     const response = await safeGenerateContent(ai, {
       model: "gemini-3.5-flash",
-      contents: message,
+      contents: instructionsAndContent,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
@@ -78,8 +84,20 @@ export async function processInboundMessageWorkflow(leadId: string, message: str
     if (!lead) return;
     const client = lead.client;
 
-    // 1. Extract specifications
-    const specs = await extractSpecsFromMessage(message);
+    // Fetch last 6 messages of conversation history to resolve pronouns or conversational context
+    const recentMessages = await prisma.message.findMany({
+      where: { leadId },
+      orderBy: { timestamp: "desc" },
+      take: 6
+    });
+    // Reverse chronologically
+    recentMessages.reverse();
+    const context = recentMessages
+      .map(m => `${m.direction === "IN" ? "Customer" : "Assistant"}: ${m.content}`)
+      .join("\n");
+
+    // 1. Extract specifications with conversation context
+    const specs = await extractSpecsFromMessage(message, context);
     if (!specs.isProductRequest || !specs.product) {
       console.log(`[Quotation Workflow] Message doesn't represent a product request. Skipping workflow.`);
       return;
