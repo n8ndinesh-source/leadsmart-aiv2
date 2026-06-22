@@ -102,11 +102,12 @@ SUPPORTED PIPELINE STAGES:
 1. NEW: Recently captured or created lead. There are no sales dialogues, or only basic greetings exchanges with no meaningful inquiries.
 2. INQUIRY: Contact is initiated. The customer is asking very high-level, exploratory questions (such as product categories, catalog/location availability, office hours, or general operational questions).
 3. QUALIFICATION: Deep requirement gathering is in progress. Discussing specific volumes, sizes, dimensions, custom branding request, delivery locations, custom timelines, and checking client/order requirements.
-4. QUOTATION: A formal price quote, commercial invoice design, layout estimate, draft mockup, or pricing checklist is being prepared, requested, sent, or actively walked through.
-5. NEGOTIATION: Customer is requesting discounts, lower MOQ, free shipping, faster schedules, negotiating final unit costs, raising strong pricing objections, or finalizing purchase decisions.
-6. FOLLOWUP: The lead is in a follow-up pause (waiting for their feedback post-quotation or after previous discussions, or checking if we should reignite contact).
-7. WON: Customer has agreed to the sale, completed final payments, transferred deposits, shared invoice receipts, or authorized the order officially.
-8. LOST: Lead outright rejected the offering, requested to stop contact, stated they bought elsewhere, did not match criteria, or are completely unresponsive over a long period.
+4. CUSTOM_ORDER: The customer requested a custom product, size, or quantity that is not present in the products catalog database. A custom order alert or specification is registered and waiting for owner decision.
+5. QUOTATION: A formal price quote, commercial invoice design, layout estimate, draft mockup, or pricing checklist is being prepared, requested, sent, or actively walked through.
+6. NEGOTIATION: Customer is requesting discounts, lower MOQ, free shipping, faster schedules, negotiating final unit costs, raising strong pricing objections, or finalizing purchase decisions.
+7. FOLLOWUP: The lead is in a follow-up pause (waiting for their feedback post-quotation or after previous discussions, or checking if we should reignite contact).
+8. WON: Customer has agreed to the sale, completed final payments, transferred deposits, shared invoice receipts, or authorized the order officially.
+9. LOST: Lead outright rejected the offering, requested to stop contact, stated they bought elsewhere, did not match criteria, or are completely unresponsive over a long period.
 
 Your output must be strict JSON matching this structure:
 {
@@ -126,6 +127,8 @@ LEAD PROFILE SUMMARY:
 - Intent Memory: ${lead.latestIntent || "UNKNOWN"}
 - Intent Journey: ${lead.intentHistory || "[]"}
 - Tags: [${tagsStr}]
+- Custom Order Required: ${lead.customOrderRequired ? "Yes" : "No"}
+- Custom Order Specs: ${lead.customOrderSpecs || "None"}
 
 INTERNAL BUSINESS NOTES & CALLBACK REMARKS:
 ${notesStr}
@@ -148,7 +151,7 @@ ${messagesStr}
           properties: {
             leadStage: { 
               type: Type.STRING,
-              description: "The primary pipeline stage assigned (one of the 8 supported stage names)."
+              description: "The primary pipeline stage assigned (one of the 9 supported stage names)."
             },
             confidence: { 
               type: Type.INTEGER, 
@@ -232,6 +235,27 @@ export async function processAndSaveLeadStage(leadId: string): Promise<any> {
   if (!lead) {
     console.warn(`[Stage Engine] Lead ${leadId} not found, skipping stage evaluation.`);
     return null;
+  }
+
+  // If customOrderRequired is locked to true, keep custom order stage as CUSTOM_ORDER
+  if (lead.customOrderRequired) {
+    console.log(`[Stage Engine] Lead "${lead.name}" has customOrderRequired: true. Enforcing Custom Order / CUSTOM_ORDER stage.`);
+    if (lead.currentStage !== "CUSTOM_ORDER" || lead.status !== "Custom Order") {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          currentStage: "CUSTOM_ORDER",
+          status: "Custom Order"
+        }
+      });
+    }
+    return {
+      previousStage: lead.currentStage,
+      currentStage: "CUSTOM_ORDER",
+      confidence: 100,
+      reason: "Lead is flagged as requiring a custom order approval/resolution, locking pipeline stage to CUSTOM_ORDER.",
+      historyId: null
+    };
   }
 
   // 2. Run stage engine to audit & determine current stage

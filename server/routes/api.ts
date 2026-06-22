@@ -2543,10 +2543,12 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     });
     const currentMsgDbId = createdInboundMsg.id;
 
-    // Trigger automated quotation / custom order alert generation async workflow
-    processInboundMessageWorkflow(lead.id, body).catch(e => {
+    // Trigger automated quotation / custom order alert generation workflow
+    try {
+      await processInboundMessageWorkflow(lead.id, body);
+    } catch (e) {
       console.error("[Quotation Workflow Trigger Error]", e);
-    });
+    }
 
     // Evaluate pipeline stage/status transition rules for inbound quotation asks
     await evaluatePipelineStateAfterMessage(lead.id, "IN", body);
