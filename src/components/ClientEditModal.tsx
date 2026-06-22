@@ -13,15 +13,7 @@ interface ClientEditModalProps {
 
 const BUSINESS_TYPES = [
   "Manufacturing",
-  "Export",
-  "Real Estate",
-  "Retail",
-  "Distributor",
-  "Service Business",
-  "Education",
-  "Healthcare",
-  "Finance",
-  "Other"
+  "Real Estate"
 ];
 
 export default function ClientEditModal({ isOpen, onClose, client, plans, onSave, isWorking }: ClientEditModalProps) {

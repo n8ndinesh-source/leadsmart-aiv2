@@ -406,6 +406,30 @@ export async function handleAICommand(
       const bizProfile = aiConfig ? JSON.parse(aiConfig.businessProfile || "{}") : {};
       const salesBeh = aiConfig ? JSON.parse(aiConfig.salesBehavior || "{}") : {};
 
+      // Fetch products catalog data
+      let productsSummaryText = "No product catalog items configured yet.";
+      try {
+        const productRecords = await prisma.productRecord.findMany({
+          where: { clientId },
+          include: {
+            values: {
+              include: {
+                productField: true
+              }
+            }
+          }
+        });
+        
+        if (productRecords && productRecords.length > 0) {
+          productsSummaryText = productRecords.map(r => {
+            const vals = r.values.map(v => `${v.productField?.fieldName}: ${v.value}`).join(", ");
+            return `- Name: ${r.name} | Category: ${r.category || "General"} | Industry Type: ${r.businessType} | Status: ${r.status}${vals ? ` | Details: ${vals}` : ""}`;
+          }).join("\n");
+        }
+      } catch (prodErr) {
+        console.error("Non-critical error loading products metadata inside ai-assistant context:", prodErr);
+      }
+
       const contextString = `
       CLIENT PROFILE DETAILS:
       - Company Name: ${clientInfo.companyName}
@@ -413,6 +437,9 @@ export async function handleAICommand(
       - Industry & Goals: ${clientInfo.industry || "General Retail"} / ${clientInfo.businessType || "B2B SaaS"}
       - Description: ${clientInfo.description || "Inbound Sales Lead Processing Center"}
       ${aiConfig ? `- CRM Target Products: ${aiConfig.productIntelligence}` : ""}
+
+      PRODUCT CATALOG MASTER INVENTORY:
+      ${productsSummaryText}
 
       CRM LEADS SNAPSHOT (${leads.length} leads in total):
       ${JSON.stringify(leadsContext.slice(0, 30))} // Providing top 30 leads for token safety

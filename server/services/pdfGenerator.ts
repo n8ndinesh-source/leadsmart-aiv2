@@ -2,15 +2,21 @@ import PDFDocument from "pdfkit";
 
 function parseBase64Image(dataStr: string): Buffer | null {
   if (!dataStr) return null;
-  if (dataStr.startsWith("data:image")) {
-    const matches = dataStr.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
-    if (matches && matches[2]) {
-      return Buffer.from(matches[2], "base64");
+  try {
+    if (dataStr.includes("base64,")) {
+      const parts = dataStr.split("base64,");
+      if (parts[1]) {
+        const base64Content = parts[1].replace(/\s/g, "");
+        return Buffer.from(base64Content, "base64");
+      }
     }
-  }
-  // If it's a solid base64 block without the header
-  if (!dataStr.includes("/") && !dataStr.includes(":") && dataStr.length > 100) {
-    return Buffer.from(dataStr, "base64");
+    // If it's a solid base64 block without key scheme delimiters like colons
+    const cleaned = dataStr.replace(/\s/g, "");
+    if (!cleaned.includes(":") && cleaned.length > 50) {
+      return Buffer.from(cleaned, "base64");
+    }
+  } catch (err) {
+    console.error("parseBase64Image failed:", err);
   }
   return null;
 }
@@ -104,7 +110,15 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
 
       if (template?.watermark) {
         try {
-          doc.image(template.watermark, 0, 0, { width: 100, height: 100, align: "center", valign: "center" });
+          const watermarkBin = parseBase64Image(template.watermark);
+          if (watermarkBin) {
+            doc.image(watermarkBin, 0, 0, { width: 100, height: 100, align: "center", valign: "center" });
+          } else if (template.watermark.startsWith("http")) {
+            doc.image(template.watermark, 0, 0, { width: 100, height: 100, align: "center", valign: "center" });
+          } else {
+            doc.path("M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15").fill(goldAccent);
+            doc.path("M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15").fill(primaryColor);
+          }
         } catch (imgErr) {
           doc.path("M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15").fill(goldAccent);
           doc.path("M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15").fill(primaryColor);
@@ -179,11 +193,20 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
       let logoExposed = false;
       if (template?.logo) {
         try {
-          doc.save();
-          doc.circle(64, 92, 22).clip();
-          doc.image(template.logo, 42, 70, { width: 44, height: 44 });
-          doc.restore();
-          logoExposed = true;
+          const logoBin = parseBase64Image(template.logo);
+          if (logoBin) {
+            doc.save();
+            doc.circle(64, 92, 22).clip();
+            doc.image(logoBin, 42, 70, { width: 44, height: 44 });
+            doc.restore();
+            logoExposed = true;
+          } else if (template.logo.startsWith("http")) {
+            doc.save();
+            doc.circle(64, 92, 22).clip();
+            doc.image(template.logo, 42, 70, { width: 44, height: 44 });
+            doc.restore();
+            logoExposed = true;
+          }
         } catch (err) {
           console.warn("Could not draw template logo in PDF, falling back to corporate vector:", err);
         }

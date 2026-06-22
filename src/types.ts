@@ -49,6 +49,8 @@ export interface ClientProfile {
   whatsappWebhookVerifyToken?: string | null;
   whatsappWebhookUrl?: string | null;
   whatsappStatus?: string | null;
+  ownerWhatsApp?: string | null;
+  approvalNotificationNumber?: string | null;
   aiProvider?: string | null;
   aiModel?: string | null;
   aiApiKey?: string | null;

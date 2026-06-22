@@ -13,6 +13,7 @@ import { analyzeMissingInformation, analyzeLeadMissingInformation } from "../ser
 import { analyzeQualificationSpecs } from "../services/industryQualEngine.js";
 import { generateSalesResponse } from "../services/salesExecutiveEngine.js";
 import { evaluatePipelineStateAfterMessage } from "../services/pipelineHooks.js";
+import { processInboundMessageWorkflow } from "../services/quotationWorkflow.js";
 
 const router = Router();
 
@@ -788,7 +789,9 @@ router.put("/client/profile", authenticateToken, requireRole(["CLIENT"]), async 
       country,
       state,
       city,
-      ownerName // Enables updating the user name
+      ownerName, // Enables updating the user name
+      ownerWhatsApp,
+      approvalNotificationNumber
     } = req.body;
 
     const client = await prisma.client.findUnique({
@@ -827,6 +830,8 @@ router.put("/client/profile", authenticateToken, requireRole(["CLIENT"]), async 
         aiModel: req.body.aiModel !== undefined ? req.body.aiModel : client.aiModel,
         aiApiKey: req.body.aiApiKey !== undefined ? req.body.aiApiKey : client.aiApiKey,
         aiAssistantName: req.body.aiAssistantName !== undefined ? req.body.aiAssistantName : client.aiAssistantName,
+        ownerWhatsApp: ownerWhatsApp !== undefined ? ownerWhatsApp : client.ownerWhatsApp,
+        approvalNotificationNumber: approvalNotificationNumber !== undefined ? approvalNotificationNumber : client.approvalNotificationNumber,
       },
       include: {
         user: {
@@ -2538,6 +2543,11 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
     });
     const currentMsgDbId = createdInboundMsg.id;
 
+    // Trigger automated quotation / custom order alert generation async workflow
+    processInboundMessageWorkflow(lead.id, body).catch(e => {
+      console.error("[Quotation Workflow Trigger Error]", e);
+    });
+
     // Evaluate pipeline stage/status transition rules for inbound quotation asks
     await evaluatePipelineStateAfterMessage(lead.id, "IN", body);
 
@@ -2776,13 +2786,405 @@ router.post("/webhook/whatsapp", async (req: Request, res: Response): Promise<an
       activeLeadGenerations.delete(leadId);
     }
 
-    return res.status(200).json({ status: "accepted", messageId });
+    return res.status(200).json({ status: "accepted", messageId: messageId || "simulated" });
 
   } catch (error) {
     console.error("Critical WhatsApp Webhook error:", error);
     if (!res.headersSent) {
       res.status(500).json({ error: "Failed to process WhatsApp Webhook transaction." });
     }
+  }
+});
+
+// ====================================================
+// OWNER SIMULATOR & NOTIFICATION APPROVAL ENDPOINTS
+// ====================================================
+
+// GET /api/owner-alerts - Fetch outstanding alerts
+router.get("/owner-alerts", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user?.id }
+    });
+    if (!client) {
+      return res.status(404).json({ error: "Owner workspace profile not found." });
+    }
+    const alerts = await prisma.ownerAlert.findMany({
+      where: { clientId: client.id },
+      orderBy: { createdAt: "desc" }
+    });
+    return res.json(alerts);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/owner-alerts/:id/approve - Approve quotation request
+router.post("/owner-alerts/:id/approve", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const alertId = req.params.id;
+    const alert = await prisma.ownerAlert.findUnique({
+      where: { id: alertId }
+    });
+    if (!alert) {
+      return res.status(404).json({ error: "Notification alert not found." });
+    }
+
+    // Update alert status
+    await prisma.ownerAlert.update({
+      where: { id: alertId },
+      data: { status: "APPROVED" }
+    });
+
+    if (alert.quoteId) {
+      // Find associated quotation
+      const quote = await prisma.quotation.findUnique({
+        where: { id: alert.quoteId }
+      });
+
+      if (quote) {
+        // Set quotation status to READY or SENT
+        await prisma.quotation.update({
+          where: { id: alert.quoteId },
+          data: { status: "READY" } // "READY" to trigger automatic dispatch simulation
+        });
+
+        // Move lead stage to QUOTATION SENT
+        await prisma.lead.update({
+          where: { id: alert.leadId },
+          data: { status: "Quotation Sent" }
+        });
+
+        // Simulate sending quotation PDF as an OUT message to lead
+        await prisma.message.create({
+          data: {
+            leadId: alert.leadId,
+            direction: "OUT",
+            content: `📄 *Quotation Approved & Sent*
+
+Our quote for your inquiry is ready!
+Quotation ID: *${quote.quotationNumber}*
+Total Amount: *₹${quote.grandTotal.toLocaleString("en-IN")}*
+
+You can view and secure payment or scheduling details. Let us know if you would like to proceed!`,
+            timestamp: new Date()
+          }
+        });
+
+        // Record timeline activity log
+        await prisma.leadActivity.create({
+          data: {
+            leadId: alert.leadId,
+            activityType: "STATUS_CHANGE",
+            description: `Auto-dispatched Quotation PDF (${quote.quotationNumber}) to customer via WhatsApp following owner approval.`
+          }
+        });
+      }
+    }
+
+    return res.json({ success: true, message: "Quotation successfully approved and dispatched!" });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/owner-alerts/:id/reject - Reject quotation request
+router.post("/owner-alerts/:id/reject", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const alertId = req.params.id;
+    const alert = await prisma.ownerAlert.findUnique({
+      where: { id: alertId }
+    });
+    if (!alert) {
+      return res.status(404).json({ error: "Notification alert not found." });
+    }
+
+    await prisma.ownerAlert.update({
+      where: { id: alertId },
+      data: { status: "REJECTED" }
+    });
+
+    if (alert.quoteId) {
+      await prisma.quotation.update({
+        where: { id: alert.quoteId },
+        data: { status: "DECLINED" }
+      });
+      
+      await prisma.leadActivity.create({
+        data: {
+          leadId: alert.leadId,
+          activityType: "NOTE_ADDED",
+          description: `Quotation proposal request was rejected by owner.`
+        }
+      });
+    }
+
+    return res.json({ success: true, message: "Proposal rejected successfully." });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/owner-alerts/:id/edit - Edit quotation price
+router.post("/owner-alerts/:id/edit", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const alertId = req.params.id;
+    const { customAmount } = req.body;
+    
+    const parsedAmount = parseFloat(customAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: "Please enter a valid monetary amount." });
+    }
+
+    const alert = await prisma.ownerAlert.findUnique({
+      where: { id: alertId }
+    });
+    if (!alert) {
+      return res.status(404).json({ error: "Notification alert not found." });
+    }
+
+    await prisma.ownerAlert.update({
+      where: { id: alertId },
+      data: { status: "APPROVED", amount: parsedAmount }
+    });
+
+    if (alert.quoteId) {
+      const quote = await prisma.quotation.findUnique({
+        where: { id: alert.quoteId }
+      });
+
+      if (quote) {
+        // Recalculate based on custom amount
+        const updatedGrandTotal = parsedAmount;
+        const gstPercent = quote.gstPercent || 18;
+        
+        // Back calculate subtotal: grandTotal = subtotal * (1 + gstPercent/100) => subtotal = grandTotal / (1 + gstPercent/100)
+        const updatedSubtotal = updatedGrandTotal / (1 + (gstPercent / 100));
+        const updatedGstAmount = updatedGrandTotal - updatedSubtotal;
+
+        let itemsArray: any[] = [];
+        try {
+          itemsArray = JSON.parse(quote.products || "[]");
+        } catch (_) {}
+
+        if (itemsArray.length > 0) {
+          const item = itemsArray[0];
+          const qty = item.quantity || 1;
+          item.unitPrice = updatedSubtotal / qty;
+        }
+
+        await prisma.quotation.update({
+          where: { id: alert.quoteId },
+          data: {
+            subtotal: updatedSubtotal,
+            gstAmount: updatedGstAmount,
+            grandTotal: updatedGrandTotal,
+            products: JSON.stringify(itemsArray),
+            status: "READY"
+          }
+        });
+
+        // Move stage to QUOTATION SENT
+        await prisma.lead.update({
+          where: { id: alert.leadId },
+          data: { status: "Quotation Sent" }
+        });
+
+        // Simulate sending quotation PDF 
+        await prisma.message.create({
+          data: {
+            leadId: alert.leadId,
+            direction: "OUT",
+            content: `📄 *Quotation Updated & Sent* (Owner Custom Pricing)
+
+An updated quota has been calculated based on requested specs.
+Quotation ID: *${quote.quotationNumber}*
+Total Custom Amount: *₹${updatedGrandTotal.toLocaleString("en-IN")}*
+
+Our customized quotation document has been delivered via WhatsApp.`,
+            timestamp: new Date()
+          }
+        });
+
+        // Record timeline activity log
+        await prisma.leadActivity.create({
+          data: {
+            leadId: alert.leadId,
+            activityType: "STATUS_CHANGE",
+            description: `Owner modified quote price to ₹${updatedGrandTotal.toLocaleString("en-IN")}. Recalculated quote variables & dispatched PDF (${quote.quotationNumber}) dynamically.`
+          }
+        });
+      }
+    }
+
+    return res.json({ success: true, message: "Custom pricing approved and quotation delivered!" });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/owner-alerts/:id/resolve-custom - Resolve custom order alert
+router.post("/owner-alerts/:id/resolve-custom", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const alertId = req.params.id;
+    const { productName, skuCode, unitPrice } = req.body;
+
+    const parsedPrice = parseFloat(unitPrice);
+    if (!productName || isNaN(parsedPrice) || parsedPrice <= 0) {
+      return res.status(400).json({ error: "Missing required inputs or invalid price." });
+    }
+
+    const alert = await prisma.ownerAlert.findUnique({
+      where: { id: alertId }
+    });
+    if (!alert) {
+      return res.status(404).json({ error: "Notification alert not found." });
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: alert.leadId }
+    });
+    if (!lead) {
+      return res.status(404).json({ error: "Associated lead not found." });
+    }
+
+    // Decode requested specs if present
+    let specs: any = {};
+    if (alert.specs) {
+      try {
+        specs = JSON.parse(alert.specs);
+      } catch (_) {}
+    } else if (lead.customOrderSpecs) {
+      try {
+        specs = JSON.parse(lead.customOrderSpecs);
+      } catch (_) {}
+    }
+
+    // 1. Double check / auto find businessType
+    const client = await prisma.client.findUnique({
+      where: { id: lead.clientId }
+    });
+    if (!client) {
+      return res.status(404).json({ error: "Client not found." });
+    }
+
+    const bizType = client.businessType || "Manufacturing";
+
+    // 2. Create the custom product record in products catalog
+    const productRecord = await prisma.productRecord.create({
+      data: {
+        clientId: client.id,
+        name: productName,
+        status: "ACTIVE",
+        businessType: bizType
+      }
+    });
+
+    // Write pricing value field if available
+    const customFields = await prisma.productField.findMany({
+      where: { clientId: client.id }
+    });
+    
+    let priceField = customFields.find(f => f.fieldName.toLowerCase().includes("price") || f.fieldName.toLowerCase().includes("rate"));
+    if (!priceField) {
+      // Create price field
+      priceField = await prisma.productField.create({
+        data: {
+          clientId: client.id,
+          fieldName: "Unit Price",
+          fieldType: "NUMBER"
+        }
+      });
+    }
+
+    await prisma.productRecordValue.create({
+      data: {
+        productRecordId: productRecord.id,
+        productFieldId: priceField.id,
+        value: String(parsedPrice)
+      }
+    });
+
+    // 2. Generate quotation for lead automatically
+    const qty = specs.quantity || 5000;
+    const subtotal = qty * parsedPrice;
+    const gstPercent = 18;
+    const gstAmount = subtotal * (gstPercent / 100);
+    const grandTotal = subtotal + gstAmount;
+    const quotationNumber = `QT-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const quote = await prisma.quotation.create({
+      data: {
+        clientId: client.id,
+        leadId: lead.id,
+        quotationNumber,
+        status: "READY",
+        products: JSON.stringify([{
+          productName: productName,
+          description: `Custom order specs: ${specs.size || "H28×W12×G5"}, automatically converted by catalog override.`,
+          quantity: qty,
+          unitPrice: parsedPrice,
+          discount: 0,
+          gst: gstPercent,
+          tax: 0,
+          deliveryCharges: 0
+        }]),
+        subtotal,
+        discountPercent: 0,
+        discountAmount: 0,
+        gstPercent,
+        gstAmount,
+        taxPercent: 0,
+        taxAmount: 0,
+        deliveryCharges: 0,
+        grandTotal
+      }
+    });
+
+    // 3. Clear Lead warning flags and upgrade status
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        customOrderRequired: false,
+        status: "Quotation Sent"
+      }
+    });
+
+    // 4. Update owner notification status
+    await prisma.ownerAlert.update({
+      where: { id: alertId },
+      data: { status: "APPROVED", amount: grandTotal, quoteId: quote.id }
+    });
+
+    // 5. Send customer message simulation
+    await prisma.message.create({
+      data: {
+        leadId: lead.id,
+        direction: "OUT",
+        content: `📄 *Custom Item Quotation Generated*
+
+Your custom requested item *${productName}* has been processed.
+Quotation ID: *${quotationNumber}*
+Total Amount: *₹${grandTotal.toLocaleString("en-IN")}*
+
+An official Quotation document has been compiled and dispatched via WhatsApp.`,
+        timestamp: new Date()
+      }
+    });
+
+    // 6. Lead Activity Logging
+    await prisma.leadActivity.create({
+      data: {
+        leadId: lead.id,
+        activityType: "CREATED",
+        description: `Added "${productName}" to Product Catalog list. Generated automatic quotation ${quotationNumber} and resolved Custom Order prompt.`
+      }
+    });
+
+    return res.json({ success: true, message: "Custom product added to catalog and quotation auto-sent!" });
+
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -3794,23 +4196,32 @@ router.get("/quotation-templates", authenticateToken, async (req: AuthenticatedR
       return res.status(401).json({ error: "Client context not found." });
     }
 
+    // Clean up uncustomized seeded templates of old schema to satisfy user request
+    const namesToClean = ["Distributor Quotation", "Export Quotation", "Corporate Quotation", "VIP Customer Quotation"];
+    await prisma.quotationTemplate.deleteMany({
+      where: {
+        clientId,
+        name: { in: namesToClean },
+        logo: null,
+        headerBanner: null,
+        footerBanner: null,
+        watermark: null
+      }
+    });
+
     let templates = await prisma.quotationTemplate.findMany({
       where: { clientId }
     });
 
     if (templates.length === 0) {
-      console.log(`[Templates Seeding] Seeding default templates for Client: ${clientId}`);
+      console.log(`[Templates Seeding] Seeding default template for Client: ${clientId}`);
       const client = await prisma.client.findUnique({ where: { id: clientId } });
       const companyName = client?.companyName || "My Business Ltd";
 
-      // Seed standard ones if empty
+      // Seed standard one if empty
       await prisma.quotationTemplate.createMany({
         data: [
-          { clientId, name: "Standard Quotation", companyName, watermarkOpacity: 15 },
-          { clientId, name: "Distributor Quotation", companyName, watermarkOpacity: 10 },
-          { clientId, name: "Export Quotation", companyName, watermarkOpacity: 15 },
-          { clientId, name: "Corporate Quotation", companyName, watermarkOpacity: 20 },
-          { clientId, name: "VIP Customer Quotation", companyName, watermarkOpacity: 15 }
+          { clientId, name: "Standard Quotation", companyName, watermarkOpacity: 15 }
         ]
       });
 
@@ -4097,6 +4508,323 @@ router.get("/public/quotations/:id", async (req: Request, res: Response): Promis
   } catch (err) {
     console.error("Failed to read public quotation detailed information:", err);
     res.status(500).json({ error: "Failed to retrieve public quotation info." });
+  }
+});
+
+// GET /api/products/fields - Fetch client custom fields
+router.get("/products/fields", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    const fields = await prisma.productField.findMany({
+      where: { clientId },
+      orderBy: { displayOrder: "asc" }
+    });
+    res.json(fields);
+  } catch (err) {
+    console.error("Fetch product fields failed:", err);
+    res.status(500).json({ error: "Failed to load product fields" });
+  }
+});
+
+// POST /api/products/fields - Create custom product field
+router.post("/products/fields", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    const { fieldName, fieldType, required, active, displayOrder } = req.body;
+    if (!fieldName || !fieldType) {
+      return res.status(400).json({ error: "Field Name and Field Type are required" });
+    }
+
+    const newField = await prisma.productField.create({
+      data: {
+        clientId,
+        fieldName,
+        fieldType,
+        required: !!required,
+        active: active !== undefined ? !!active : true,
+        displayOrder: displayOrder ? parseInt(displayOrder) : 0
+      }
+    });
+
+    res.status(201).json(newField);
+  } catch (err) {
+    console.error("Create product field failed:", err);
+    res.status(500).json({ error: "Failed to create product field" });
+  }
+});
+
+// PUT /api/products/fields/:id - Update product field
+router.put("/products/fields/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    const { fieldName, fieldType, required, active, displayOrder } = req.body;
+
+    const updated = await prisma.productField.update({
+      where: { id: req.params.id, clientId },
+      data: {
+        fieldName,
+        fieldType,
+        required: required !== undefined ? !!required : undefined,
+        active: active !== undefined ? !!active : undefined,
+        displayOrder: displayOrder !== undefined ? parseInt(displayOrder) : undefined
+      }
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Update product field failed:", err);
+    res.status(500).json({ error: "Failed to update product field" });
+  }
+});
+
+// DELETE /api/products/fields/:id - Delete product field
+router.delete("/products/fields/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    await prisma.productField.delete({
+      where: { id: req.params.id, clientId }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete product field failed:", err);
+    res.status(500).json({ error: "Failed to delete product field" });
+  }
+});
+
+// POST /api/products/templates/seed - Seed default Manufacturing/Real Estate design schema fields
+router.post("/products/templates/seed", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    const { templateType } = req.body;
+
+    let fieldsToCreate: Array<{ name: string; type: string; required: boolean; order: number }> = [];
+
+    if (templateType === "MANUFACTURING") {
+      fieldsToCreate = [
+        { name: "Item Name", type: "Text", required: true, order: 1 },
+        { name: "Description", type: "Textarea", required: false, order: 2 },
+        { name: "Material", type: "Text", required: false, order: 3 },
+        { name: "Size", type: "Text", required: false, order: 4 },
+        { name: "GSM", type: "Number", required: false, order: 5 },
+        { name: "Weight", type: "Text", required: false, order: 6 },
+        { name: "MOQ", type: "Number", required: false, order: 7 },
+        { name: "Price", type: "Currency", required: true, order: 8 },
+        { name: "GST", type: "Number", required: false, order: 9 },
+        { name: "Image", type: "Image Upload", required: false, order: 10 }
+      ];
+    } else if (templateType === "REAL_ESTATE") {
+      fieldsToCreate = [
+        { name: "Project Name", type: "Text", required: true, order: 1 },
+        { name: "Property Name", type: "Text", required: true, order: 2 },
+        { name: "Property Type", type: "Dropdown", required: false, order: 3 },
+        { name: "BHK", type: "Dropdown", required: false, order: 4 },
+        { name: "Area", type: "Text", required: false, order: 5 },
+        { name: "Floor", type: "Number", required: false, order: 6 },
+        { name: "Facing", type: "Text", required: false, order: 7 },
+        { name: "Amenities", type: "Multi Select", required: false, order: 8 },
+        { name: "Price", type: "Currency", required: true, order: 9 },
+        { name: "Status", type: "Dropdown", required: false, order: 10 },
+        { name: "Property Images", type: "Image Upload", required: false, order: 11 },
+        { name: "Brochure", type: "File Upload", required: false, order: 12 }
+      ];
+    } else {
+      return res.status(400).json({ error: "Invalid template type requested" });
+    }
+
+    // Delete existing product fields to avoid confusion/duplication
+    await prisma.productField.deleteMany({
+      where: { clientId }
+    });
+
+    const createdFields = [];
+    for (const f of fieldsToCreate) {
+      const created = await prisma.productField.create({
+        data: {
+          id: `${clientId}_field_${f.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+          clientId,
+          fieldName: f.name,
+          fieldType: f.type,
+          required: f.required,
+          active: true,
+          displayOrder: f.order
+        }
+      });
+      createdFields.push(created);
+    }
+
+    res.json({ success: true, count: createdFields.length, fields: createdFields });
+  } catch (err) {
+    console.error("Seed templates failed:", err);
+    res.status(500).json({ error: "Failed to apply starter template" });
+  }
+});
+
+// GET /api/products/records - Get all typed records with dynamic mapped custom values
+router.get("/products/records", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    const records = await prisma.productRecord.findMany({
+      where: { clientId },
+      include: {
+        values: {
+          include: {
+            productField: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    res.json(records);
+  } catch (err) {
+    console.error("Fetch product records failed:", err);
+    res.status(500).json({ error: "Failed to load product records" });
+  }
+});
+
+// POST /api/products/records - Create typed record + dynamic properties
+router.post("/products/records", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    const { name, category, status, businessType, values } = req.body;
+    if (!name || !businessType) {
+      return res.status(400).json({ error: "Product Name and Business Type are required" });
+    }
+
+    const record = await prisma.productRecord.create({
+      data: {
+        clientId,
+        name,
+        category,
+        status: status || "ACTIVE",
+        businessType
+      }
+    });
+
+    if (values && typeof values === "object") {
+      const valuePromises = Object.entries(values).map(([fieldId, val]) => {
+        return prisma.productRecordValue.create({
+          data: {
+            id: `${record.id}_val_${fieldId}`,
+            productRecordId: record.id,
+            productFieldId: fieldId,
+            value: String(val !== null && val !== undefined ? val : "")
+          }
+        });
+      });
+      await Promise.all(valuePromises);
+    }
+
+    const finalRecord = await prisma.productRecord.findUnique({
+      where: { id: record.id },
+      include: {
+        values: {
+          include: {
+            productField: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json(finalRecord);
+  } catch (err) {
+    console.error("Create product record failed:", err);
+    res.status(500).json({ error: "Failed to save product record" });
+  }
+});
+
+// PUT /api/products/records/:id - Update product record
+router.put("/products/records/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    const { name, category, status, businessType, values } = req.body;
+    const recordId = req.params.id;
+
+    await prisma.productRecord.update({
+      where: { id: recordId, clientId },
+      data: {
+        name,
+        category,
+        status,
+        businessType
+      }
+    });
+
+    if (values && typeof values === "object") {
+      for (const [fieldId, val] of Object.entries(values)) {
+        await prisma.productRecordValue.upsert({
+          where: { productRecordId_productFieldId: { productRecordId: recordId, productFieldId: fieldId } },
+          create: {
+            id: `${recordId}_val_${fieldId}`,
+            productRecordId: recordId,
+            productFieldId: fieldId,
+            value: String(val !== null && val !== undefined ? val : "")
+          },
+          update: {
+            value: String(val !== null && val !== undefined ? val : "")
+          }
+        });
+      }
+    }
+
+    const finalRecord = await prisma.productRecord.findUnique({
+      where: { id: recordId },
+      include: {
+        values: {
+          include: {
+            productField: true
+          }
+        }
+      }
+    });
+
+    res.json(finalRecord);
+  } catch (err) {
+    console.error("Update product record failed:", err);
+    res.status(500).json({ error: "Failed to update product record" });
+  }
+});
+
+// DELETE /api/products/records/:id - Delete product record
+router.delete("/products/records/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const client = await prisma.client.findFirst({ where: { userId: req.user.id } });
+    const clientId = client?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
+
+    await prisma.productRecord.delete({
+      where: { id: req.params.id, clientId }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete product record failed:", err);
+    res.status(500).json({ error: "Failed to delete product record" });
   }
 });
 

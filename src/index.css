@@ -407,7 +407,8 @@ td {
 .light .bg-emerald-950\/40,
 .light .bg-emerald-200\/20,
 .light .bg-emerald-950\/20,
-.light .bg-emerald-900\/40 {
+.light .bg-emerald-900\/40,
+.light .bg-emerald-950\/50 {
   background-color: #ecfdf5 !important;
   color: #047857 !important;
   border-color: #a7f3d0 !important;
@@ -415,7 +416,8 @@ td {
 .light .bg-emerald-950\/40 *,
 .light .bg-emerald-200\/20 *,
 .light .bg-emerald-950\/20 *,
-.light .bg-emerald-900\/40 * {
+.light .bg-emerald-900\/40 *,
+.light .bg-emerald-950\/50 * {
   color: #047857 !important;
 }
 .light .text-emerald-400 {
@@ -424,20 +426,33 @@ td {
 
 .light .bg-rose-950\/40,
 .light .bg-rose-950\/20,
-.light .bg-rose-900\/40 {
+.light .bg-rose-900\/40,
+.light .bg-red-950\/50 {
   background-color: #fff1f2 !important;
   color: #be123c !important;
   border-color: #fecdd3 !important;
 }
 .light .bg-rose-950\/40 *,
 .light .bg-rose-950\/20 *,
-.light .bg-rose-900\/40 * {
+.light .bg-rose-900\/40 *,
+.light .bg-red-950\/50 * {
   color: #be123c !important;
 }
 .light .text-rose-455,
 .light .text-rose-450,
 .light .text-rose-400 {
   color: #be123c !important;
+}
+
+.light .bg-slate-900,
+.light .bg-zinc-900 {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+.light .bg-slate-900 *,
+.light .bg-zinc-900 * {
+  color: #475569 !important;
 }
 
 .light .bg-yellow-950\/40 {

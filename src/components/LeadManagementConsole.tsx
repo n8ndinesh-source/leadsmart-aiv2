@@ -225,6 +225,39 @@ export function LeadManagementConsole() {
     }
   };
 
+  const handleSimulateCustomerMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLeadId || !selectedLead || !manualMessage.trim()) return;
+    try {
+      setSendingMessage(true);
+      const content = manualMessage.trim();
+      setManualMessage("");
+
+      await api.post<any>("/webhook/whatsapp", {
+        phone: selectedLead.phoneNumber,
+        message: content,
+        name: selectedLead.name,
+        phoneId: "simulated"
+      });
+
+      // Update local thread smoothly
+      setTimeout(async () => {
+        try {
+          const data = await api.get<any[]>(`/messages/${selectedLeadId}`);
+          setWhatsappMessages(data || []);
+          
+          const rawLeads = await api.get<Lead[]>("/leads");
+          setLeads(rawLeads || []);
+        } catch (_) {}
+      }, 1200);
+
+    } catch (err: any) {
+      alert(err.message || "Failed to deliver simulated WhatsApp customer notification.");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   // Handle Create Lead
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1954,9 +1987,19 @@ export function LeadManagementConsole() {
                   <button
                     type="submit"
                     disabled={sendingMessage || !manualMessage.trim()}
-                    className="px-4 bg-[#128c7e] hover:bg-[#1ebb5a] text-white font-bold text-xs uppercase rounded-xl disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+                    className="px-3 bg-[#128c7e] hover:bg-[#1ebb5a] text-white font-bold text-[10px] uppercase rounded-xl disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+                    title="Send manual outreach message to customer"
                   >
-                    {sendingMessage ? "Sending..." : "Send"}
+                    {sendingMessage ? "..." : "Outbound"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSimulateCustomerMessage}
+                    disabled={sendingMessage || !manualMessage.trim()}
+                    className="px-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] uppercase rounded-xl disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+                    title="Simulate this message as incoming from the customer"
+                  >
+                    {sendingMessage ? "..." : "Simulate Inbound"}
                   </button>
                 </div>
                 <div className="flex justify-between items-center text-[10px] font-mono pt-1">

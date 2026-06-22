@@ -9,7 +9,9 @@ import { LeadManagementConsole } from "../components/LeadManagementConsole";
 import FollowUpConsole from "../components/FollowUpConsole";
 import AiInsightsDashboard from "../components/AiInsightsDashboard";
 import AIAssistantCoPilot from "../components/AIAssistantCoPilot";
+import OwnerSimulatorPanel from "../components/OwnerSimulatorPanel";
 import QuotationTemplatesPanel from "../components/QuotationTemplatesPanel";
+import ProductsPanel from "../components/ProductsPanel";
 import { 
   BarChart3, 
   MessageSquare, 
@@ -45,20 +47,13 @@ import {
   Copy,
   FileText,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Package
 } from "lucide-react";
 
 const BUSINESS_TYPES = [
   "Manufacturing",
-  "Export",
-  "Real Estate",
-  "Retail",
-  "Distributor",
-  "Service Business",
-  "Education",
-  "Healthcare",
-  "Finance",
-  "Other"
+  "Real Estate"
 ];
 
 export default function ClientDashboard() {
@@ -67,7 +62,7 @@ export default function ClientDashboard() {
   const { theme, toggleTheme } = useTheme();
 
   // Tabs
-  const [activeTab, setActiveTab ] = useState<"dashboard" | "leads" | "followups" | "ai-insights" | "quotation-templates" | "profile" | "settings">("dashboard");
+  const [activeTab, setActiveTab ] = useState<"dashboard" | "leads" | "followups" | "ai-insights" | "quotation-templates" | "products" | "profile" | "settings">("dashboard");
   
   // States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -83,6 +78,8 @@ export default function ClientDashboard() {
   const [companyName, setCompanyName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [phone, setPhone] = useState("");
+  const [ownerWhatsApp, setOwnerWhatsApp] = useState("");
+  const [approvalNotificationNumber, setApprovalNotificationNumber] = useState("");
   const [website, setWebsite] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [industry, setIndustry] = useState("");
@@ -169,6 +166,8 @@ export default function ClientDashboard() {
       setCompanyName(clientObj.companyName || "");
       setOwnerName(clientObj.user?.name || "");
       setPhone(clientObj.phone || "");
+      setOwnerWhatsApp(clientObj.ownerWhatsApp || "");
+      setApprovalNotificationNumber(clientObj.approvalNotificationNumber || "");
       setWebsite(clientObj.website || "");
       setBusinessType(clientObj.businessType || BUSINESS_TYPES[0]);
       setIndustry(clientObj.industry || "");
@@ -219,6 +218,8 @@ export default function ClientDashboard() {
         companyName,
         ownerName,
         phone,
+        ownerWhatsApp,
+        approvalNotificationNumber,
         website,
         businessType,
         industry,
@@ -568,7 +569,7 @@ export default function ClientDashboard() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900/40"
               }`}
             >
-              <BarChart3 className="w-4 h-4 text-slate-505" />
+              <BarChart3 className={`w-4 h-4 transition-colors ${activeTab === "dashboard" ? "text-indigo-400" : "text-slate-400"}`} />
               <span>Workspace Overview</span>
             </button>
 
@@ -580,11 +581,9 @@ export default function ClientDashboard() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900/40"
               }`}
             >
-              <Users className="w-4 h-4 text-slate-505" />
+              <Users className={`w-4 h-4 transition-colors ${activeTab === "leads" ? "text-indigo-400" : "text-slate-400"}`} />
               <span>Leads Console</span>
             </button>
-
-
 
             <button
               onClick={() => { setActiveTab("followups"); setIsMobileMenuOpen(false); }}
@@ -594,7 +593,7 @@ export default function ClientDashboard() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900/40"
               }`}
             >
-              <Calendar className="w-4 h-4 text-indigo-400" />
+              <Calendar className={`w-4 h-4 transition-colors ${activeTab === "followups" ? "text-indigo-400" : "text-slate-400"}`} />
               <span>Auto Follow-ups</span>
             </button>
 
@@ -606,7 +605,7 @@ export default function ClientDashboard() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900/40"
               }`}
             >
-              <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />
+              <Sparkles className={`w-4 h-4 transition-colors ${activeTab === "ai-insights" ? "text-indigo-400" : "text-slate-400"}`} />
               <span>AI Insights Manager</span>
             </button>
 
@@ -618,8 +617,20 @@ export default function ClientDashboard() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900/40"
               }`}
             >
-              <FileText className="w-4 h-4 text-indigo-400 animate-pulse" />
+              <FileText className={`w-4 h-4 transition-colors ${activeTab === "quotation-templates" ? "text-indigo-400" : "text-slate-400"}`} />
               <span>Quotation Templates</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab("products"); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
+                activeTab === "products"
+                  ? "bg-indigo-600/10 text-indigo-400 border-l-2 border-indigo-500 pl-2"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900/40"
+              }`}
+            >
+              <Package className={`w-4 h-4 transition-colors ${activeTab === "products" ? "text-indigo-400" : "text-slate-400"}`} />
+              <span>Products</span>
             </button>
 
             <button
@@ -630,7 +641,7 @@ export default function ClientDashboard() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900/40"
               }`}
             >
-              <Briefcase className="w-4 h-4 text-slate-505" />
+              <Briefcase className={`w-4 h-4 transition-colors ${activeTab === "profile" ? "text-indigo-400" : "text-slate-400"}`} />
               <span>Company Profile</span>
             </button>
 
@@ -642,7 +653,7 @@ export default function ClientDashboard() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900/40"
               }`}
             >
-              <SettingsIcon className="w-4 h-4 text-slate-550" />
+              <SettingsIcon className={`w-4 h-4 transition-colors ${activeTab === "settings" ? "text-indigo-400" : "text-slate-400"}`} />
               <span>Account Settings</span>
             </button>
           </nav>
@@ -709,6 +720,7 @@ export default function ClientDashboard() {
                 {activeTab === "followups" && "AUTOMATED SALES FOLLOW-UP CONSOLE"}
                 {activeTab === "ai-insights" && "AI DECISION ENGINE & INSIGHTS"}
                 {activeTab === "quotation-templates" && "QUOTATION TEMPLATE MODULE"}
+                 {activeTab === "products" && "DYNAMIC PRODUCT CATALOG ENGINE"}
                 {activeTab === "profile" && "CONNECTED COMPANY SPECIFICATIONS"}
                 {activeTab === "settings" && "WORKSPACE LOGINS & CONTACT DETAILS"}
               </h1>
@@ -718,6 +730,7 @@ export default function ClientDashboard() {
                 {activeTab === "followups" && "Track inactivity trigger rules, dynamic AI reminders histories, and restore missed revenues."}
                 {activeTab === "ai-insights" && "Evaluate high-intent scoring, response strategies, conversion analytics, and revenue optimizations on WhatsApp."}
                 {activeTab === "quotation-templates" && "Design quotation branding, banners, logo, and watermarks for business contracts."}
+                {activeTab === "products" && "Configure customizable product schemas, manage inventories, and sync master values with AI."}
                 {activeTab === "profile" && "Verify subscription billing lines, price points, and active business quotas."}
                 {activeTab === "settings" && "Configure contact emails, physical coordinates, and change account passwords."}
               </p>
@@ -881,6 +894,11 @@ export default function ClientDashboard() {
             {/* TAB 3.7: QUOTATION BRANDS AND TEMPLATES DESIGNER */}
             {activeTab === "quotation-templates" && (
               <QuotationTemplatesPanel />
+            )}
+
+            {/* TAB 3.8: MASTER PRODUCTS CATALOG MANAGEMENT */}
+            {activeTab === "products" && (
+              <ProductsPanel businessType={businessType} />
             )}
 
             {/* TAB 4: COMPANY PROFILE VIEWER (NEW PHASE 2 REQUIREMENT!) */}
@@ -1049,6 +1067,31 @@ export default function ClientDashboard() {
                           className="w-full bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-white font-light"
                           required
                         />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Owner WhatsApp Number</label>
+                        <input
+                          type="text"
+                          value={ownerWhatsApp}
+                          onChange={(e) => setOwnerWhatsApp(e.target.value)}
+                          placeholder="e.g. +91 9876543210"
+                          className="w-full bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-white font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Approval Notification Number</label>
+                        <input
+                          type="text"
+                          value={approvalNotificationNumber}
+                          onChange={(e) => setApprovalNotificationNumber(e.target.value)}
+                          placeholder="e.g. +91 9876543210"
+                          className="w-full bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-white font-mono"
+                        />
+                        <p className="text-[9px] text-slate-550 italic">Receives quotation approvals and custom order alerts.</p>
                       </div>
                     </div>
 
@@ -1471,7 +1514,10 @@ export default function ClientDashboard() {
       </main>
 
       {clientProfile?.id && (
-        <AIAssistantCoPilot clientId={clientProfile.id} />
+        <>
+          <AIAssistantCoPilot clientId={clientProfile.id} />
+          <OwnerSimulatorPanel />
+        </>
       )}
     </div>
   );

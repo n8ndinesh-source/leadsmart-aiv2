@@ -39,6 +39,8 @@ model Client {
   whatsappWebhookVerifyToken String?
   whatsappWebhookUrl         String?
   whatsappStatus             String?       @default("Inactive") // Active, Inactive, Failed
+  ownerWhatsApp              String?
+  approvalNotificationNumber String?
 
   // Custom AI Assistant configuration and custom LLM API Key
   aiProvider                 String?       @default("gemini")
@@ -55,6 +57,8 @@ model Client {
   aiPermissions      AIPermission[]
   quotationTemplates QuotationTemplate[]
   quotations         Quotation[]
+  productFields      ProductField[]
+  productRecords     ProductRecord[]
 }
 
 model AIConfiguration {
@@ -123,6 +127,9 @@ model Lead {
   intentScore      Int?
   leadScore        Int?
   aiRecommendation String?
+  
+  customOrderRequired Boolean @default(false)
+  customOrderSpecs   String?   // JSON string storing spec detail: { product, size, quantity }
   
   // WhatsApp tracking details
   lastMessageAt      DateTime?
@@ -322,5 +329,65 @@ model Quotation {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+model ProductField {
+  id           String               @id @default(uuid())
+  clientId     String
+  client       Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  fieldName    String               // e.g. "Item Name", "GSM", "BHK"
+  fieldType    String               // Text, Textarea, Number, Currency, Dropdown, Multi Select, Date, Checkbox, Image Upload, File Upload
+  required     Boolean              @default(false)
+  active       Boolean              @default(true)
+  displayOrder Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  values       ProductRecordValue[]
+
+  @@map("product_fields")
+}
+
+model ProductRecord {
+  id           String               @id @default(uuid())
+  clientId     String
+  client       Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name         String               // Easy-to-read title or display name (e.g., Bagasse Plate 10 Inch)
+  category     String?              // Optional category
+  status       String               @default("ACTIVE") // ACTIVE, OUT_OF_STOCK, INACTIVE etc.
+  businessType String               // "Manufacturing" | "Real Estate"
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  values       ProductRecordValue[]
+
+  @@map("product_records")
+}
+
+model ProductRecordValue {
+  id              String        @id @default(uuid())
+  productRecordId String
+  productRecord   ProductRecord @relation(fields: [productRecordId], references: [id], onDelete: Cascade)
+  productFieldId  String
+  productField    ProductField  @relation(fields: [productFieldId], references: [id], onDelete: Cascade)
+  value           String        // Stored as string, parsed/typed according to fieldType
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([productRecordId, productFieldId])
+  @@map("product_record_values")
+}
+
+model OwnerAlert {
+  id        String   @id @default(uuid())
+  clientId  String
+  leadId    String
+  title     String
+  message   String
+  type      String   // "QUOTATION_APPROVAL", "CUSTOM_ORDER_ALERT"
+  status    String   // "PENDING", "APPROVED", "REJECTED", "EDITED"
+  amount    Float?
+  specs     String?  // JSON string
+  quoteId   String?  // If QUOTATION_APPROVAL
+  createdAt DateTime @default(now())
+}
+
 
 

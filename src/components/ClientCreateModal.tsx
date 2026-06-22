@@ -12,15 +12,7 @@ interface ClientCreateModalProps {
 
 const BUSINESS_TYPES = [
   "Manufacturing",
-  "Export",
-  "Real Estate",
-  "Retail",
-  "Distributor",
-  "Service Business",
-  "Education",
-  "Healthcare",
-  "Finance",
-  "Other"
+  "Real Estate"
 ];
 
 export default function ClientCreateModal({ isOpen, onClose, plans, onCreate, isWorking }: ClientCreateModalProps) {

@@ -45,6 +45,96 @@ interface ProductItem {
   gst: number; // percentage
   taxName: string;
   taxRate: number; // percentage
+  dbRecordId?: string;
+  customFields?: Record<string, { fieldName: string, value: string, fieldType: string }>;
+}
+
+function buildRowFromDbRecord(record: any, customId?: string): ProductItem {
+  const rowId = customId || `row-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  if (!record) {
+    return {
+      id: rowId,
+      name: "",
+      code: "",
+      description: "",
+      quantity: 1,
+      unitPrice: 0,
+      discount: 0,
+      gst: 18,
+      taxName: "VAT",
+      taxRate: 0
+    };
+  }
+
+  // Find price/currency if any
+  let price = 0;
+  const curFieldVal = record.values?.find((v: any) => 
+    v.productField?.fieldType === "Currency" || 
+    v.productField?.fieldName?.toLowerCase().includes("price")
+  );
+  if (curFieldVal) {
+    price = Number(curFieldVal.value) || 0;
+  } else {
+    // Fallback to any numeric field value containing currency or price or numeric
+    const numFieldVal = record.values?.find((v: any) => 
+      v.productField?.fieldType === "Number" && 
+      !v.productField?.fieldName?.toLowerCase().includes("moq") &&
+      !v.productField?.fieldName?.toLowerCase().includes("hsn")
+    );
+    if (numFieldVal) {
+      price = Number(numFieldVal.value) || 0;
+    }
+  }
+
+  // Find HSN/SAC code if any
+  let code = "";
+  const codeFieldVal = record.values?.find((v: any) => {
+    const nameLower = v.productField?.fieldName?.toLowerCase() || "";
+    return nameLower.includes("hsn") || nameLower.includes("sac") || nameLower.includes("code");
+  });
+  if (codeFieldVal) {
+    code = codeFieldVal.value;
+  }
+
+  // Build dynamic description
+  const specs: Record<string, { fieldName: string, value: string, fieldType: string }> = {};
+  const specParts: string[] = [];
+  
+  if (record.values && record.values.length > 0) {
+    record.values.forEach((v: any) => {
+      if (!v.productField) return;
+      const fName = v.productField.fieldName;
+      const fType = v.productField.fieldType;
+      const fVal = v.value;
+      
+      specs[fName] = {
+        fieldName: fName,
+        value: fVal,
+        fieldType: fType
+      };
+
+      if (fVal && fType !== "Image Upload" && fType !== "File Upload") {
+        specParts.push(`${fName.toUpperCase()} : ${fVal}`);
+      }
+    });
+  }
+
+  const description = specParts.join("\n");
+
+  return {
+    id: rowId,
+    name: record.name || "",
+    code: code || "",
+    description: description || `Category: ${record.category || "General"}`,
+    quantity: 1,
+    unitPrice: price,
+    discount: 0,
+    gst: 18,
+    taxName: "VAT",
+    taxRate: 0,
+    dbRecordId: record.id,
+    customFields: specs
+  };
 }
 
 interface TemplateSelection {
@@ -85,16 +175,8 @@ interface QuotationModalProps {
   onQuotationCreated?: () => void;
 }
 
-// Preset products for quick-select
-const PRESET_PRODUCTS = [
-  { name: "Premium Diagnostic Medical Kit v4", code: "MED-KIT-V4", price: 250, desc: "Surgical wholesale grade, certified PCR diagnostics bundle." },
-  { name: "Hospital Ventilator Interface System", code: "VENT-SYS-99", price: 1200, desc: "High fluidic precision multi-rate flow modulator." },
-  { name: "Automated Sterilizer Chamber 300L", code: "STER-300L", price: 3450, desc: "Ultra-high static vacuum autoclave setup with digital telemetry." },
-  { name: "Mobile Radiography Cart Scanner", code: "SCAN-CART-M", price: 4900, desc: "Integrated smart-display mobile radiation imaging cart." },
-  { name: "Disposable Reagent Diagnostic Cartridge", code: "REAG-CART-D", price: 45, desc: "Pack of 50 disposable active microfluidic test cards." },
-  { name: "Saffron Organic Fiber Pack", code: "SAF-ORG-FIB", price: 100, desc: "High grade organic extraction dye filaments." },
-  { name: "Polyester Filter Grid Block", code: "POLY-FILT-G", price: 80, desc: "Precision woven polymer microfiltration grid filters." }
-];
+// Preset products for quick-select (disabled)
+const PRESET_PRODUCTS: Array<{ name: string; code: string; price: number; desc: string }> = [];
 
 // Helper to convert number to words of currency
 function numberToEnglishWords(amount: number, currencyCode: string): string {
@@ -171,25 +253,13 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
   const [productsList, setProductsList] = useState<ProductItem[]>([
     {
       id: "row-1",
-      name: "Saffron Organic Fiber Pack",
-      code: "SAF-ORG-FIB",
-      description: "High grade organic extraction dye filaments.",
-      quantity: 10,
-      unitPrice: 100,
+      name: "",
+      code: "",
+      description: "",
+      quantity: 1,
+      unitPrice: 0,
       discount: 0,
       gst: 18,
-      taxName: "VAT",
-      taxRate: 0
-    },
-    {
-      id: "row-2",
-      name: "Polyester Filter Grid Block",
-      code: "POLY-FILT-G",
-      description: "Precision woven polymer microfiltration grid filters.",
-      quantity: 10,
-      unitPrice: 80,
-      discount: 0,
-      gst: 12,
       taxName: "VAT",
       taxRate: 0
     }
@@ -241,13 +311,23 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
 
   // Terms and Conditions lines Array
   const [terms, setTerms] = useState<string[]>([
-    "Applicable taxes will be extra.",
-    "Work will resume after advance payment.",
-    "Goods once sold will not be returned."
+    "APPLICABLE TAXESS",
+    "WORK WILL START AFTER GETTING ADVANCE",
+    "THIS QUOTATION VALID ONLY 1 WEEK FROM SEDING DATE"
   ]);
+
+  // Modal helper states for terms edit and signature upload
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isSignatureOpen, setIsSignatureOpen] = useState(false);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [signatoryName, setSignatoryName] = useState("Authorized Signatory");
 
   // For visual feedback card
   const [alertInfo, setAlertInfo] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Product Catalog states
+  const [dbRecords, setDbRecords] = useState<any[]>([]);
+  const [dbFields, setDbFields] = useState<any[]>([]);
 
   useEffect(() => {
     fetchTemplatesAndHistory();
@@ -268,6 +348,38 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
       setPreviousQuotes(historyList || []);
       if (historyList && historyList.length > 0) {
         setActiveTab("history");
+      }
+
+      // 3. Fetch products master database
+      try {
+        const fetchedFields = await api.get<any[]>("/products/fields");
+        const fetchedRecords = await api.get<any[]>("/products/records");
+        setDbFields(fetchedFields || []);
+        setDbRecords(fetchedRecords || []);
+
+        if (!editingQuotationId) {
+          if (fetchedRecords && fetchedRecords.length > 0) {
+            const defaultProd = buildRowFromDbRecord(fetchedRecords[0], "row-1");
+            setProductsList([defaultProd]);
+          } else {
+            setProductsList([
+              {
+                id: "row-1",
+                name: "",
+                code: "",
+                description: "",
+                quantity: 1,
+                unitPrice: 0,
+                discount: 0,
+                gst: 18,
+                taxName: "VAT",
+                taxRate: 0
+              }
+            ]);
+          }
+        }
+      } catch (prodErr) {
+        console.error("Non-critical error loading products metadata:", prodErr);
       }
     } catch (err: any) {
       console.error("Failed to load modal prefetch data:", err);
@@ -311,14 +423,16 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
         setProductsList(parsedProds.map((p: any, idx: number) => ({
           id: `row-${idx}-${Date.now()}-${Math.random()}`,
           name: p.productName || p.name || "",
-          code: p.code || "",
+          code: p.code || p.hsn || p.codeValue || "",
           description: p.description || "",
           quantity: p.quantity || 1,
           unitPrice: p.unitPrice || 0,
           discount: p.discount || 0,
           gst: p.gst || p.gstRate || 18,
           taxName: p.taxName || "VAT",
-          taxRate: p.tax || p.taxRate || 0
+          taxRate: p.tax || p.taxRate || 0,
+          dbRecordId: p.dbRecordId,
+          customFields: p.customFields
         })));
         
         // Extract delivery charges if any
@@ -347,34 +461,88 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
           if (metadata.vendor) setVendorDetails(prev => ({ ...prev, ...metadata.vendor }));
           if (metadata.client) setClientDetails(prev => ({ ...prev, ...metadata.client }));
           if (metadata.termsList) setTerms(metadata.termsList);
+          if (metadata.signatureUrl !== undefined) setSignatureUrl(metadata.signatureUrl);
+          if (metadata.signatoryName !== undefined) setSignatoryName(metadata.signatoryName);
           if (metadata.discountPercent !== undefined) setDiscountPercent(metadata.discountPercent);
         } else {
           setAdditionalNotes(quote.additionalNotes);
+          setSignatureUrl(null);
+          setSignatoryName("Authorized Signatory");
         }
       } catch (e) {
         setAdditionalNotes(quote.additionalNotes);
+        setSignatureUrl(null);
+        setSignatoryName("Authorized Signatory");
       }
+    } else {
+      setSignatureUrl(null);
+      setSignatoryName("Authorized Signatory");
     }
 
     setActiveTab("create");
   };
 
   const handleAddProductRow = () => {
-    setProductsList([
-      ...productsList,
-      {
-        id: `row-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        name: "",
-        code: "",
-        description: "",
-        quantity: 1,
-        unitPrice: 0,
-        discount: 0,
-        gst: 18,
-        taxName: "VAT",
-        taxRate: 0
+    const newRow = dbRecords && dbRecords.length > 0 
+      ? buildRowFromDbRecord(dbRecords[0])
+      : {
+          id: `row-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          name: "",
+          code: "",
+          description: "",
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+          gst: 18,
+          taxName: "VAT",
+          taxRate: 0
+        };
+    setProductsList([...productsList, newRow]);
+  };
+
+  const handleSelectCatalogProduct = (rec: any) => {
+    // Collect non-empty custom parameters for description
+    const propsList: string[] = [];
+    let detectedPrice = 0;
+    const specs: Record<string, { fieldName: string, value: string, fieldType: string }> = {};
+
+    rec.values?.forEach((valObj: any) => {
+      const fName = valObj.productField?.fieldName || "";
+      const fVal = valObj.value;
+      const fType = valObj.productField?.fieldType || "Text";
+      if (fName && fVal) {
+        specs[fName] = {
+          fieldName: fName,
+          value: fVal,
+          fieldType: fType
+        };
+
+        if (fName.toLowerCase().includes("price") && !isNaN(Number(fVal))) {
+          detectedPrice = Number(fVal);
+        } else if (fType !== "Image Upload" && fType !== "File Upload") {
+          propsList.push(`${fName.toUpperCase()} : ${fVal}`);
+        }
       }
-    ]);
+    });
+
+    const descriptionText = propsList.join("\n");
+
+    const newProduct = {
+      id: `row-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: rec.name,
+      code: `${rec.businessType.substring(0, 3).toUpperCase()}-${rec.id.substring(0, 4).toUpperCase()}`,
+      description: descriptionText,
+      quantity: 1,
+      unitPrice: detectedPrice || 0,
+      discount: 0,
+      gst: 18,
+      taxName: "VAT",
+      taxRate: 0,
+      dbRecordId: rec.id,
+      customFields: specs
+    };
+
+    setProductsList([...productsList, newProduct]);
   };
 
   const handleRemoveProductRow = (id: string) => {
@@ -417,11 +585,129 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
             updated.code = matched.code;
             updated.unitPrice = matched.price;
             updated.description = matched.desc;
+            updated.dbRecordId = undefined;
+            updated.customFields = undefined;
           }
         }
         return updated;
       })
     );
+  };
+
+  const handleProductSelect = (rowId: string, selectValue: string) => {
+    if (!selectValue) {
+      setProductsList(
+        productsList.map(row => {
+          if (row.id !== rowId) return row;
+          return {
+            ...row,
+            name: "",
+            code: "",
+            description: "",
+            unitPrice: 0,
+            dbRecordId: undefined,
+            customFields: undefined
+          };
+        })
+      );
+      return;
+    }
+
+    if (selectValue.startsWith("db-")) {
+      const recordId = selectValue.substring(3);
+      const record = dbRecords.find(r => r.id === recordId);
+      if (record) {
+        // Find price/currency if any
+        let price = 0;
+        const curFieldVal = record.values?.find((v: any) => 
+          v.productField?.fieldType === "Currency" || 
+          v.productField?.fieldName?.toLowerCase().includes("price")
+        );
+        if (curFieldVal) {
+          price = Number(curFieldVal.value) || 0;
+        } else {
+          // Fallback to any numeric field value containing currency or price or numeric
+          const numFieldVal = record.values?.find((v: any) => 
+            v.productField?.fieldType === "Number" && 
+            !v.productField?.fieldName?.toLowerCase().includes("moq") &&
+            !v.productField?.fieldName?.toLowerCase().includes("hsn")
+          );
+          if (numFieldVal) {
+            price = Number(numFieldVal.value) || 0;
+          }
+        }
+
+        // Find HSN/SAC code if any
+        let code = "";
+        const codeFieldVal = record.values?.find((v: any) => {
+          const nameLower = v.productField?.fieldName?.toLowerCase() || "";
+          return nameLower.includes("hsn") || nameLower.includes("sac") || nameLower.includes("code");
+        });
+        if (codeFieldVal) {
+          code = codeFieldVal.value;
+        }
+
+        // Build dynamic description by joining all fields that are not empty and not images
+        const specs: Record<string, { fieldName: string, value: string, fieldType: string }> = {};
+        const specParts: string[] = [];
+        
+        if (record.values && record.values.length > 0) {
+          record.values.forEach((v: any) => {
+            if (!v.productField) return;
+            const fName = v.productField.fieldName;
+            const fType = v.productField.fieldType;
+            const fVal = v.value;
+            
+            specs[fName] = {
+              fieldName: fName,
+              value: fVal,
+              fieldType: fType
+            };
+
+            if (fVal && fType !== "Image Upload" && fType !== "File Upload") {
+              specParts.push(`${fName.toUpperCase()} : ${fVal}`);
+            }
+          });
+        }
+
+        const description = specParts.join("\n");
+
+        setProductsList(
+          productsList.map(row => {
+            if (row.id !== rowId) return row;
+            // UPDATE EVERYTHING EXCEPT quantity, discount, gst
+            return {
+              ...row,
+              name: record.name,
+              code: code || row.code,
+              description: description || `Category: ${record.category || "General"}`,
+              unitPrice: price > 0 ? price : row.unitPrice,
+              dbRecordId: record.id,
+              customFields: specs
+            };
+          })
+        );
+      }
+    } else if (selectValue.startsWith("preset-")) {
+      const pName = selectValue.substring(7);
+      const matched = PRESET_PRODUCTS.find(p => p.name === pName);
+      if (matched) {
+        setProductsList(
+          productsList.map(row => {
+            if (row.id !== rowId) return row;
+            return {
+              ...row,
+              name: matched.name,
+              code: matched.code,
+              description: matched.desc,
+              unitPrice: matched.price,
+              dbRecordId: undefined,
+              customFields: undefined
+            };
+          })
+        );
+      }
+    }
   };
 
   // Preset Address triggers
@@ -641,7 +927,9 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
         discount: Number(p.discount) || 0,
         gst: Number(p.gst) || 0,
         tax: Number(p.taxRate) || 0,
-        deliveryCharges: idx === 0 ? Number(deliveryCharges || 0) : 0
+        deliveryCharges: idx === 0 ? Number(deliveryCharges || 0) : 0,
+        dbRecordId: p.dbRecordId,
+        customFields: p.customFields
       }));
 
       const payload = {
@@ -659,6 +947,8 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
           vendor: vendorDetails,
           client: clientDetails,
           termsList: terms,
+          signatureUrl,
+          signatoryName,
           hasDiscounts: discountPercent > 0,
           discountPercent,
           branding: {
@@ -893,7 +1183,7 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                         <p className={`text-[9px] mt-1 ${theme === "light" ? "text-slate-400" : "text-slate-650"}`}>Please create and design templates in the Quotation Templates configuration tab.</p>
                       </div>
                     ) : (
-                      templates.map((t, index) => {
+                      templates.map((t) => {
                         const isSelected = selectedTemplateId === t.id;
                         return (
                           <div
@@ -915,7 +1205,6 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                                   ? "bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300"
                                   : "bg-[#080d1a] border-slate-900/80 hover:bg-slate-900/40 hover:border-slate-800"
                             }`}
-                            style={index === 2 ? { backgroundColor: "#e7e7fc" } : undefined}
                           >
                             <div className="flex items-center space-x-3">
                               {t.logo ? (
@@ -941,14 +1230,14 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                                   <Briefcase className={`w-3 h-3 mr-1 shrink-0 ${
                                     theme === "light" ? "text-indigo-500" : "text-slate-505"
                                   }`} />
-                                  <span className="truncate max-w-[140px] block" style={index === 2 ? { color: "#000000" } : undefined}>{t.companyName || "No Company Specified"}</span>
+                                  <span className="truncate max-w-[140px] block">{t.companyName || "No Company Specified"}</span>
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
                               {isSelected ? (
                                 <span className={`p-1 rounded-full text-[9px] flex items-center justify-center ${
-                                  theme === "light" ? "bg-indigo-650 text-white" : "bg-indigo-500 text-white"
+                                  theme === "light" ? "bg-indigo-600 text-white" : "bg-indigo-500 text-white"
                                 }`}>
                                   <Check className="w-3 h-3" />
                                 </span>
@@ -1022,11 +1311,30 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                     ? "bg-white border-slate-200"
                     : "bg-slate-950 border-slate-900"
                 }`}>
-                  <span className={`text-[10px] uppercase font-bold tracking-wider block border-b pb-1 ${
-                    theme === "light" ? "text-slate-800 border-slate-100" : "text-slate-400 border-slate-900"
+                  <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-2 gap-2 ${
+                    theme === "light" ? "border-slate-100" : "border-slate-900"
                   }`}>
-                    2. GEOGRAPHIC PARTIES (FROM & FOR ADDRESS blocks)
-                  </span>
+                    <span className={`text-[10px] uppercase font-bold tracking-wider block ${
+                      theme === "light" ? "text-slate-800" : "text-slate-400"
+                    }`}>
+                      2. GEOGRAPHIC PARTIES (FROM & FOR ADDRESS blocks)
+                    </span>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <label className={`text-[9px] uppercase font-bold tracking-wider ${
+                        theme === "light" ? "text-slate-500" : "text-slate-450"
+                      }`}>Quotation No:</label>
+                      <input
+                        type="text"
+                        value={quotationNumber}
+                        onChange={(e) => setQuotationNumber(e.target.value)}
+                        className={`text-xs px-2.5 py-1.5 rounded focus:outline-none border font-mono transition-all w-36 ${
+                          theme === "light"
+                            ? "bg-slate-100 border-slate-205 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
+                            : "bg-slate-900 border-slate-800 text-white focus:border-indigo-505"
+                        }`}
+                      />
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* FROM BLOCK Vendor details */}
@@ -1192,107 +1500,6 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                     </div>
                   </div>
                 </div>
-
-                {/* 3. COORDINATES AND METAS CARD */}
-                <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl border transition-all ${
-                  theme === "light"
-                    ? "bg-white border-slate-200"
-                    : "bg-slate-950 border-slate-900"
-                }`}>
-                  <div className={`space-y-1 md:col-span-3 pb-1 border-b ${
-                    theme === "light" ? "border-slate-100" : "border-slate-900"
-                  }`}>
-                    <span className={`text-[10px] uppercase font-bold tracking-wider ${
-                      theme === "light" ? "text-slate-805" : "text-slate-400"
-                    }`}>
-                      3. TAXATION & SUPPLY LOCALES
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className={`text-[9px] uppercase font-bold block ${
-                      theme === "light" ? "text-slate-500" : "text-slate-450"
-                    }`}>Quotation No.</label>
-                    <input
-                      type="text"
-                      value={quotationNumber}
-                      onChange={(e) => setQuotationNumber(e.target.value)}
-                      className={`w-full text-xs p-2 rounded focus:outline-none border font-mono transition-all ${
-                        theme === "light"
-                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className={`text-[9px] uppercase font-bold block ${
-                      theme === "light" ? "text-slate-500" : "text-slate-450"
-                    }`}>Currency symbol</label>
-                    <select
-                      value={meta.currency}
-                      onChange={(e) => setMeta(prev => ({ ...prev, currency: e.target.value }))}
-                      className={`w-full text-xs p-2 rounded focus:outline-none border font-bold transition-all ${
-                        theme === "light"
-                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
-                      }`}
-                    >
-                      <option value="INR">Indian Rupee (INR, ₹)</option>
-                      <option value="USD">US Dollar (USD, $)</option>
-                      <option value="EUR">Euro (EUR, €)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className={`text-[9px] uppercase font-bold block ${
-                      theme === "light" ? "text-slate-500" : "text-slate-450"
-                    }`}>State of Supply</label>
-                    <input
-                      type="text"
-                      value={meta.stateOfSupply}
-                      onChange={(e) => setMeta(prev => ({ ...prev, stateOfSupply: e.target.value }))}
-                      className={`w-full text-xs p-2 rounded focus:outline-none border transition-all ${
-                        theme === "light"
-                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className={`text-[9px] uppercase font-bold block ${
-                      theme === "light" ? "text-slate-505" : "text-slate-455"
-                    }`}>Country of Supply</label>
-                    <input
-                      type="text"
-                      value={meta.countryOfSupply}
-                      onChange={(e) => setMeta(prev => ({ ...prev, countryOfSupply: e.target.value }))}
-                      className={`w-full text-xs p-2 rounded focus:outline-none border transition-all ${
-                        theme === "light"
-                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className={`text-[9px] uppercase font-bold block ${
-                      theme === "light" ? "text-slate-550" : "text-slate-455"
-                    }`}>Bid Validity Days</label>
-                    <input
-                      type="text"
-                      value={validityDays}
-                      onChange={(e) => setValidityDays(e.target.value)}
-                      className={`w-full text-xs p-2 rounded focus:outline-none border transition-all ${
-                        theme === "light"
-                          ? "bg-slate-100 border-slate-200 text-slate-800 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                          : "bg-slate-900 border-slate-800 text-white focus:border-indigo-500"
-                      }`}
-                    />
-                  </div>
-                </div>
-
                 {/* 4. LINE ITEMS WORKSPACE TABLE rows */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
@@ -1301,23 +1508,15 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                     }`}>
                       4. PRODUCTS & SCOPE OF SERVICE WORKSPACE
                     </span>
-                    <div className="flex space-x-1.5">
-                      <button
-                        type="button"
-                        onClick={handleEditGstFlat}
-                        className={`px-2 py-1 text-[9px] rounded font-bold border transition-all ${
-                          theme === "light"
-                            ? "bg-slate-50 border-slate-205 text-slate-705 hover:bg-slate-100"
-                            : "bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:border-slate-755"
-                        }`}
-                        title="Set a flat GST percent across all rows"
-                      >
-                        Flat GST %
-                      </button>
+                    <div className="flex items-center space-x-2 shrink-0">
                       <button
                         type="button"
                         onClick={handleAddProductRow}
-                        className="px-2.5 py-1 text-[9.5px]/[14px] rounded bg-indigo-650 hover:bg-indigo-600 text-white font-extrabold flex items-center space-x-1 transition-all cursor-pointer"
+                        className={`px-2.5 py-1 text-[9.5px]/[14px] rounded font-extrabold flex items-center space-x-1 transition-all cursor-pointer ${
+                          theme === "light"
+                            ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                            : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                        }`}
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Add Row</span>
@@ -1401,18 +1600,30 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                           <div className="space-y-1">
                             <label className="text-[8px] uppercase font-mono font-bold text-slate-500 block">Preset Auto-Fill select</label>
                             <select
-                              value={row.name}
-                              onChange={(e) => updateProductRow(row.id, "name", e.target.value)}
+                              value={row.dbRecordId ? `db-${row.dbRecordId}` : PRESET_PRODUCTS.some(p => p.name === row.name) ? `preset-${row.name}` : ""}
+                              onChange={(e) => handleProductSelect(row.id, e.target.value)}
                               className={`w-full text-xs rounded px-2 py-1 focus:outline-none border transition-all ${
                                 theme === "light"
                                   ? "bg-slate-50 border-slate-205 text-slate-800"
                                   : "bg-slate-950 border-slate-850 text-white"
                               }`}
                             >
-                              <option value="">-- Custom Manual Row --</option>
-                              {PRESET_PRODUCTS.map(p => (
-                                <option key={p.code} value={p.name}>{p.name} ({curr}{p.price})</option>
-                              ))}
+                              <option value="">Select Product</option>
+                              {dbRecords.length > 0 && 
+                                dbRecords.map(r => {
+                                  const priceVal = r.values?.find((v: any) => 
+                                    v.productField?.fieldType === "Currency" || 
+                                    v.productField?.fieldName?.toLowerCase().includes("price")
+                                  )?.value || "";
+                                  const categoryInfo = r.category ? ` [${r.category}]` : "";
+                                  const formattedPrice = priceVal ? ` (${curr}${priceVal})` : "";
+                                  return (
+                                    <option key={r.id} value={`db-${r.id}`}>
+                                      {r.name}{categoryInfo}{formattedPrice}
+                                    </option>
+                                  );
+                                })
+                              }
                             </select>
                           </div>
 
@@ -1433,27 +1644,13 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pb-1">
-                          <div className="md:col-span-4 space-y-1">
-                            <label className="text-[8px] uppercase font-mono font-bold text-slate-500 block">HSN/SAC Code</label>
-                            <input
-                              type="text"
-                              value={row.code}
-                              onChange={(e) => updateProductRow(row.id, "code", e.target.value)}
-                              placeholder="e.g. 1211"
-                              className={`w-full text-xs rounded px-2 py-1 font-mono focus:outline-none border transition-all ${
-                                theme === "light"
-                                  ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                                  : "bg-slate-950 border-slate-850 text-white font-mono"
-                              }`}
-                            />
-                          </div>
-                          <div className="md:col-span-8 space-y-1">
+                          <div className="md:col-span-12 space-y-1">
                             <label className="text-[8px] uppercase font-mono font-bold text-slate-500 block">Detailed Specifications description / scope</label>
-                            <input
-                              type="text"
+                            <textarea
                               value={row.description}
                               onChange={(e) => updateProductRow(row.id, "description", e.target.value)}
                               placeholder="e.g. FDA certified, surgical wholesale grade extraction..."
+                              rows={3}
                               className={`w-full text-xs rounded px-2 py-1 focus:outline-none border transition-all ${
                                 theme === "light"
                                   ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
@@ -1462,6 +1659,75 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                             />
                           </div>
                         </div>
+
+                        {/* Dynamic Custom Fields attributes panel */}
+                        {row.customFields && Object.keys(row.customFields).length > 0 && (
+                          <div className={`p-2.5 rounded-lg border my-2 transition-all ${
+                            theme === "light"
+                              ? "bg-slate-50/50 border-slate-205 text-slate-800"
+                              : "bg-[#0b0f19]/40 border-slate-900/60 text-slate-300"
+                          }`}>
+                            <div className="flex justify-between items-center mb-2 pb-1 border-b border-dashed border-slate-200 dark:border-slate-800">
+                              <span className="text-[9px] uppercase font-mono font-bold text-indigo-500 tracking-wider flex items-center">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5 animate-pulse"></span>
+                                Product Schema Properties 
+                              </span>
+                              <span className="text-[8px] text-slate-450 dark:text-slate-500 font-mono">Auto-updates Description / Scope</span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                              {(Object.values(row.customFields) as any[]).map((field, fIdx) => (
+                                <div key={fIdx} className="space-y-0.5">
+                                  <span className="text-[7.5px] uppercase font-mono font-bold text-slate-500 dark:text-slate-400 block truncate" title={field.fieldName}>
+                                    {field.fieldName}
+                                  </span>
+                                  {field.fieldType === "Image Upload" || field.fieldType === "File Upload" ? (
+                                    field.value ? (
+                                      <div className="relative group/fieldimg w-10 h-10 rounded border border-slate-200 dark:border-slate-800 bg-slate-950 overflow-hidden">
+                                        <img 
+                                          src={field.value} 
+                                          alt={field.fieldName} 
+                                          className="w-full h-full object-cover"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <span className="text-[8px] text-slate-400 italic block py-0.5">No image</span>
+                                    )
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={field.value}
+                                      onChange={(e) => {
+                                        const updatedSpecs = { ...row.customFields } as any;
+                                        updatedSpecs[field.fieldName] = { ...field, value: e.target.value };
+                                        
+                                        // Auto update the row summary description by joining non-imagery/file properties
+                                        const desc = (Object.values(updatedSpecs) as any[])
+                                          .filter(f => f && f.fieldType !== "Image Upload" && f.fieldType !== "File Upload")
+                                          .map(f => `${f.fieldName.toUpperCase()} : ${f.value}`)
+                                          .join("\n");
+
+                                        setProductsList(productsList.map(pr => {
+                                          if (pr.id !== row.id) return pr;
+                                          return {
+                                            ...pr,
+                                            customFields: updatedSpecs,
+                                            description: desc || pr.description
+                                          };
+                                        }));
+                                      }}
+                                      className={`w-full text-[10px] rounded px-2 py-0.5 border focus:outline-none focus:ring-1 focus:ring-indigo-500/25 transition-all ${
+                                        theme === "light"
+                                          ? "bg-white border-slate-200 text-slate-800"
+                                          : "bg-slate-950/40 border-slate-900 text-slate-300"
+                                      }`}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Numerical computation rows */}
                         <div className={`grid grid-cols-3 md:grid-cols-5 gap-3.5 pt-1 border-t ${
@@ -1659,115 +1925,37 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                   )}
                 </div>
 
-                {/* 6. APPENDIX CONDITIONS CARD */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1 px-1">
-                    <label className={`text-[9px] uppercase font-bold block ${
-                      theme === "light" ? "text-slate-805" : "text-slate-450"
-                    }`}>Logistics / Delivery notes</label>
-                    <textarea
-                      rows={2}
-                      value={deliveryTerms}
-                      onChange={(e) => setDeliveryTerms(e.target.value)}
-                      className={`w-full text-xs rounded-xl p-3 focus:outline-none border transition-all ${
-                        theme === "light"
-                          ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                          : "bg-slate-950 border-slate-900 text-white focus:border-indigo-500"
-                      }`}
-                      placeholder="e.g. Immediate delivery coordinates..."
-                    />
-                  </div>
 
-                  <div className="space-y-1 px-1">
-                    <label className={`text-[9px] uppercase font-bold block ${
-                      theme === "light" ? "text-slate-805" : "text-slate-450"
-                    }`}>Wire Bank / Payment instructions</label>
-                    <textarea
-                      rows={2}
-                      value={paymentTerms}
-                      onChange={(e) => setPaymentTerms(e.target.value)}
-                      className={`w-full text-xs rounded-xl p-3 focus:outline-none border transition-all ${
-                        theme === "light"
-                          ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                          : "bg-slate-950 border-slate-900 text-white focus:border-indigo-500"
-                      }`}
-                      placeholder="e.g. Standard bank routing codes..."
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-1 px-1">
-                  <label className={`text-[9px] uppercase font-bold block ${
-                    theme === "light" ? "text-slate-805" : "text-slate-450"
-                  }`}>Footer Greeting notes / remarks</label>
-                  <textarea
-                    rows={1.5}
-                    value={additionalNotes}
-                    onChange={(e) => setAdditionalNotes(e.target.value)}
-                    className={`w-full text-xs rounded-xl p-3 focus:outline-none border transition-all ${
+                {/* Extra Actions row under remarks */}
+                <div className="flex items-center space-x-3 pt-3 px-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsTermsOpen(true)}
+                    className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
                       theme === "light"
-                        ? "bg-slate-50 border-slate-205 text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-1 focus:ring-indigo-500/40"
-                        : "bg-slate-950 border-slate-900 text-white focus:border-indigo-500"
-                    }`}
-                    placeholder="We appreciate your corporate business..."
-                  />
-                </div>
-
-                {/* Extra Action tools list */}
-                <div className={`grid grid-cols-2 md:grid-cols-4 gap-2 border-t pt-3 ${
-                  theme === "light" ? "border-slate-105" : "border-slate-900"
-                }`}>
-                  <button 
-                    type="button" 
-                    onClick={handleEditTerms}
-                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
-                      theme === "light"
-                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700"
-                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300 hover:text-white"
+                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700 hover:border-slate-300"
+                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-350 hover:text-white"
                     }`}
                   >
+                    <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Config Terms</span>
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => alert("Digital Signature placeholder setup completed!")}
-                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
+                  <button
+                    type="button"
+                    onClick={() => setIsSignatureOpen(true)}
+                    className={`flex-1 py-2.5 px-4 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
                       theme === "light"
-                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700"
-                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300 hover:text-white"
+                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700 hover:border-slate-300"
+                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-350 hover:text-white"
                     }`}
                   >
+                    <Signature className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Add Signature</span>
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => alert("Corporate PDF scope attachments enabled!")}
-                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all ${
-                      theme === "light"
-                        ? "bg-slate-100 hover:bg-slate-150 border-slate-200 text-slate-700"
-                        : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    <span>Attachments</span>
-                  </button>
-                  <div 
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => alert("Lead WhatsApp details integrated successfully.")}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        alert("Lead WhatsApp details integrated successfully.");
-                      }
-                    }}
-                    className={`p-2 rounded-xl text-[10px] font-extrabold uppercase flex items-center justify-center space-x-1.5 cursor-pointer border transition-all focus:outline-none ${
-                      theme === "light"
-                        ? "bg-indigo-50 border-indigo-150 hover:bg-indigo-100 text-indigo-700"
-                        : "bg-slate-900 hover:bg-[#070e1b] border-indigo-950 text-indigo-400"
-                    }`}
-                  >
-                    <span>WhatsApp logs</span>
-                  </div>
-                </div>      </div>
+                </div>
+
+                      </div>
 
                 {/* Creation execution blocks */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-900 pt-4">
@@ -1844,29 +2032,6 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                         </svg>
                       </div>
                     )}
-
-                    {/* Logo position in banner row */}
-                    <div className="px-6 py-2.5 flex items-center justify-between -mt-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-13 h-13 rounded-full bg-white shadow-md flex items-center justify-center p-1 relative z-20" style={{ transform: "translateY(-6px)" }}>
-                          {branding.logo ? (
-                            <img src={branding.logo} alt="Company logo avatar" className="w-[85%] h-[85%] rounded-full object-contain" referrerPolicy="no-referrer" />
-                          ) : (
-                            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[85%] h-[85%]">
-                              <path d="M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15" fill="#e2a326"/>
-                              <path d="M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15" fill="#0c353a"/>
-                            </svg>
-                          )}
-                        </div>
-                        <div style={{ transform: "translateY(-3px)" }}>
-                          <h2 className="text-base font-black font-display tracking-tight text-slate-900 leading-none">{vendorDetails.name}</h2>
-                          <span className="text-[9px] font-bold text-slate-400 tracking-wider">Automated Sales Division</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] font-extrabold text-slate-400 tracking-widest block">OFFICIAL PROPOSAL</span>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Main Printable Content area */}
@@ -1925,7 +2090,7 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                     <div className="overflow-hidden rounded-xl border border-slate-100 shadow-sm mb-4">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-[#6b3fc5] text-white font-semibold text-[9px]">
+                          <tr className="bg-[#0084f8] text-white font-semibold text-[9px]">
                             <th className="py-2 px-2.5">Item Column</th>
                             <th className="py-2 px-1 text-center">GST %</th>
                             <th className="py-2 px-1 text-center">Qty</th>
@@ -1945,7 +2110,11 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                               <tr key={item.id} className={index % 2 === 1 ? "bg-slate-55/40 bg-slate-50/50" : ""}>
                                 <td className="py-2 px-2.5 font-semibold text-slate-900 leading-snug">
                                   <div className="font-bold">{index + 1}. {item.name || "Untitled Item Product"}</div>
-                                  <div className="text-[7.5px] text-slate-400 font-mono font-normal">HSN: {item.code || "N/A"} - {item.description || "No description"}</div>
+                                  {item.description && (
+                                    <div className="text-[7.5px] text-slate-400 font-mono font-normal whitespace-pre-line mt-0.5">
+                                      {item.description}
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="py-2 px-1 text-center text-slate-700 font-mono font-bold">{item.gst}%</td>
                                 <td className="py-2 px-1 text-center text-slate-700 font-bold font-mono">{item.quantity}</td>
@@ -1971,10 +2140,6 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                             <li key={i}>{term}</li>
                           ))}
                         </ol>
-                        <div className="pt-2 text-[8px] font-medium leading-relaxed bg-[#f8fafc] p-2.5 rounded-xl border border-slate-100 text-slate-500">
-                          <strong className="text-slate-750 uppercase text-[7.5px] block">Corporate Supply & Delivery Clause:</strong>
-                          {deliveryTerms}
-                        </div>
                       </div>
 
                       {/* Mathematical calculation block values */}
@@ -2023,17 +2188,31 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                       </div>
                     </div>
 
+                    {/* Remarks & Signature alignment block */}
+                    <div className="flex justify-between items-end mt-4 px-1 pb-3">
+                      {/* Left: Empty spacer */}
+                      <div className="max-w-[55%]"></div>
+                      {/* Right: Signature stamp */}
+                      <div className="w-[38%] flex flex-col items-center justify-end text-center">
+                        {signatureUrl ? (
+                          <div className="h-10 flex items-center justify-center mb-1 bg-white p-0.5 rounded border border-slate-100 shadow-xs">
+                            <img src={signatureUrl} alt="Authorized Signature" className="max-h-full max-w-full object-contain" referrerPolicy="no-referrer" />
+                          </div>
+                        ) : (
+                          <div className="h-10 flex items-center justify-center mb-1 text-[8px] text-slate-350 italic border border-dashed border-slate-200 rounded-lg px-3">
+                            No signature added
+                          </div>
+                        )}
+                        <div className="w-full border-t border-slate-300 border-dashed my-1"></div>
+                        <span className="text-[8px] font-bold text-slate-800 uppercase tracking-wider">{signatoryName || "Authorized Signatory"}</span>
+                        <span className="text-[6.5px] text-slate-400 block mt-0.5">Corporate Representative</span>
+                      </div>
+                    </div>
+
                   </div>
 
                   {/* Footer portion */}
                   <div className="relative w-full z-10 bottom-0 select-none mt-auto">
-                    {/* Foot contact lines */}
-                    <div className="px-6 py-2.5 border-t border-slate-100 bg-white flex items-center justify-between text-[7.5px] text-slate-500 font-bold font-mono">
-                      <span className="flex items-center">HQ: www.{vendorDetails.name.toLowerCase().replace(/\s+/g, "")}.com</span>
-                      <span className="flex items-center">Mob: {vendorDetails.phone}</span>
-                      <span className="flex items-center">Email: info@{vendorDetails.name.toLowerCase().replace(/\s+/g, "")}.com</span>
-                    </div>
-
                     {/* Thick bottom ribbon SVG or Image */}
                     {branding.footerBanner ? (
                       <div className="w-full overflow-hidden" style={{ height: "48px" }}>
@@ -2156,7 +2335,7 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
                                   setConfirmReadyQuoteId(null);
                                 }
                               }}
-                              className="text-[10px] bg-indigo-650 hover:bg-indigo-600 text-white font-bold px-2 py-0.5 rounded"
+                              className="text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-0.5 rounded"
                             >
                               Confirm
                             </button>
@@ -2210,6 +2389,200 @@ export default function QuotationModal({ lead, onClose, onQuotationCreated }: Qu
         </div>
 
       </div>
+
+      {/* -------------------- CONFIG TERMS OVERLAY MODAL -------------------- */}
+      {isTermsOpen && (
+        <div className="fixed inset-0 z-[110] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-xl bg-[#090d1e] border border-slate-800 rounded-2xl shadow-2xl p-6 text-left text-slate-200 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-800 shrink-0">
+              <div className="flex items-center space-x-2">
+                <BookOpen className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-sm font-bold text-slate-100 font-display">Configure Quotation Terms & Conditions</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsTermsOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-400 mt-2 mb-4 leading-relaxed shrink-0">
+              These clauses are appended dynamically to the bottom-left corner of the quotation document sheet. Keep them short and clear.
+            </p>
+
+            {/* Editable list */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-1">
+              {terms.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                  No terms specified. Use the add button below to generate a new clause line item.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {terms.map((term, index) => (
+                    <div key={index} className="flex items-start space-x-2.5">
+                      <span className="text-[10px] font-mono font-bold text-slate-500 pt-2 w-5 text-right">{index + 1}.</span>
+                      <textarea
+                        rows={1}
+                        value={term}
+                        onChange={(e) => {
+                          const updated = [...terms];
+                          updated[index] = e.target.value;
+                          setTerms(updated);
+                        }}
+                        placeholder={`e.g. Terms clause #${index + 1}`}
+                        className="flex-1 text-xs rounded-xl px-3 py-2 focus:outline-none border bg-slate-950 border-slate-850 text-white focus:border-indigo-505 resize-none h-9 align-middle animate-fade-in"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = terms.filter((_, idx) => idx !== index);
+                          setTerms(updated);
+                        }}
+                        className="p-2 rounded-xl text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-all shrink-0 mt-0.5"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Controls */}
+            <div className="pt-4 border-t border-slate-800 flex flex-col space-y-3 shrink-0">
+              <div className="flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTerms([
+                      "APPLICABLE TAXESS",
+                      "WORK WILL START AFTER GETTING ADVANCE",
+                      "THIS QUOTATION VALID ONLY 1 WEEK FROM SEDING DATE"
+                    ]);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-amber-900/30 bg-amber-950/15 hover:bg-amber-950/30 text-amber-400 text-[10px] font-bold uppercase transition-all"
+                >
+                  Reset Standard Presets
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTerms([...terms, ""])}
+                  className="px-3.5 py-1.5 rounded-lg bg-indigo-950 border border-indigo-805 hover:bg-indigo-900 text-indigo-400 text-[10px] font-bold uppercase flex items-center space-x-1 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Line Item</span>
+                </button>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsTermsOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all uppercase tracking-widest hover:shadow-indigo-500/10"
+                >
+                  Done & Save Terms
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------- ADD SIGNATURE OVERLAY MODAL -------------------- */}
+      {isSignatureOpen && (
+        <div className="fixed inset-0 z-[110] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-[#090d1e] border border-slate-800 rounded-2xl shadow-2xl p-6 text-left text-slate-200">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+              <div className="flex items-center space-x-2">
+                <Signature className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-sm font-bold text-slate-100 font-display">Authorized Signature Asset</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsSignatureOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-400 mt-2 mb-4 leading-relaxed">
+              Upload a digital image of your authorized signature, stamp, or corporate seal. A high-contrast PNG with transparent background fits perfectly.
+            </p>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase font-bold text-slate-450 block">Signatory Representative Name / Title</label>
+                <input
+                  type="text"
+                  value={signatoryName}
+                  onChange={(e) => setSignatoryName(e.target.value)}
+                  placeholder="e.g. Authorized Signatory / Prop. Name"
+                  className="w-full text-xs rounded-xl px-3 py-2.5 focus:outline-none border bg-slate-950 border-slate-850 text-white focus:border-indigo-505"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] uppercase font-bold text-slate-450 block">Signature Image File</label>
+                <div className="border border-dashed border-slate-800 rounded-xl p-4 bg-slate-950/50 flex flex-col items-center justify-center space-y-2">
+                  <Upload className="w-6 h-6 text-slate-500 animate-pulse" />
+                  <span className="text-[10px] text-slate-400 text-center">Click or drag image file here (Max 2MB)</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 2 * 1024 * 1024) {
+                          alert("Image size exceeds 2MB limit.");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (typeof reader.result === "string") {
+                            setSignatureUrl(reader.result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="cursor-pointer text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-[10px] file:font-semibold file:bg-indigo-950 file:text-indigo-400 hover:file:bg-indigo-900 transition-all w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview container */}
+              {signatureUrl && (
+                <div className="p-4 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center space-y-2 animate-scale-up">
+                  <span className="text-[8px] font-mono text-slate-400 uppercase tracking-widest block font-bold">Quotation Sheet Signature Preview</span>
+                  <div className="h-14 flex items-center justify-center p-1 bg-white">
+                    <img src={signatureUrl} alt="Active uploaded signature seal" className="max-h-full object-contain" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSignatureUrl(null)}
+                    className="px-2.5 py-1 text-[9px] font-bold text-red-500 border border-red-500/20 hover:bg-red-500/10 rounded-lg transition-all uppercase"
+                  >
+                    Clear Active Asset
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsSignatureOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all uppercase tracking-widest"
+              >
+                Apply & Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
