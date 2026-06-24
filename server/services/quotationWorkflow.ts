@@ -3,15 +3,26 @@ import { prisma } from "../db.js";
 import { safeGenerateContent } from "./geminiHelper.js";
 import { generateQuotationPdf } from "./pdfGenerator.js";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-    timeout: 120000,
+let aiClient: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("[Quotation Workflow] GEMINI_API_KEY is not defined in environment variables!");
+    }
+    aiClient = new GoogleGenAI({
+      apiKey: apiKey || "",
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+        timeout: 120000,
+      }
+    });
   }
-});
+  return aiClient;
+}
 
 interface ExtractedSpecs {
   isProductRequest: boolean;
@@ -53,7 +64,7 @@ Do not include any markdown format tags like \`\`\`json. Return only the raw JSO
       ? `Recent Conversation Context:\n${context}\n\nLatest Customer Message to parse:\n"${message}"`
       : message;
 
-    const response = await safeGenerateContent(ai, {
+    const response = await safeGenerateContent(getGeminiClient(), {
       model: "gemini-3.5-flash",
       contents: instructionsAndContent,
       config: {
@@ -168,7 +179,7 @@ ${catalogList}
 Return the matching ID as JSON {\"matchedId\": \"some-uuid\" | null}. If no highly relevant match exists, return null.`;
 
         try {
-          const response = await safeGenerateContent(ai, {
+          const response = await safeGenerateContent(getGeminiClient(), {
             model: "gemini-3.5-flash",
             contents: "Find match",
             config: {
@@ -287,7 +298,10 @@ ${quotationNumber}`;
           const cleanPhone = recipientPhone.replace(/\D/g, "");
           if (cleanPhone) {
             console.log(`[WhatsApp Dispatch] Dispatching approval alert to Owner: ${cleanPhone}`);
-            await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
+            const metaResponse = await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${client.whatsappToken}`,
@@ -298,8 +312,18 @@ ${quotationNumber}`;
                 to: cleanPhone,
                 type: "text",
                 text: { body: alertMessage }
-              })
+              }),
+              signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
+            console.log(`[WhatsApp Dispatch] Meta API status: ${metaResponse.status} ${metaResponse.statusText}`);
+            if (!metaResponse.ok) {
+              const errBody = await metaResponse.text();
+              console.error(`[WhatsApp Dispatch Error] Meta API returned non-OK response:`, errBody);
+            } else {
+              console.log(`[WhatsApp Dispatch] Approval alert successfully sent to Owner.`);
+            }
           }
         } catch (dispatchErr) {
           console.error(`[WhatsApp Dispatch Error] Failed to send approval alert via WhatsApp to Owner:`, dispatchErr);
@@ -360,7 +384,10 @@ This product does *not* exist in your Products database or is marked as custom. 
           const cleanPhone = recipientPhone.replace(/\D/g, "");
           if (cleanPhone) {
             console.log(`[WhatsApp Dispatch] Dispatching custom order alert to Owner: ${cleanPhone}`);
-            await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
+            const metaResponse = await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${client.whatsappToken}`,
@@ -371,8 +398,18 @@ This product does *not* exist in your Products database or is marked as custom. 
                 to: cleanPhone,
                 type: "text",
                 text: { body: alertMessage }
-              })
+              }),
+              signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
+            console.log(`[WhatsApp Dispatch] Meta API status for Custom Order: ${metaResponse.status} ${metaResponse.statusText}`);
+            if (!metaResponse.ok) {
+              const errBody = await metaResponse.text();
+              console.error(`[WhatsApp Dispatch Error] Meta API returned non-OK response for Custom Order:`, errBody);
+            } else {
+              console.log(`[WhatsApp Dispatch] Custom order alert successfully sent to Owner.`);
+            }
           }
         } catch (dispatchErr) {
           console.error(`[WhatsApp Dispatch Error] Failed to send custom order alert via WhatsApp to Owner:`, dispatchErr);

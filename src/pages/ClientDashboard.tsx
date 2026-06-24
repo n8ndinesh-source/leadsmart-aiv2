@@ -119,9 +119,9 @@ export default function ClientDashboard() {
       return;
     }
 
-    // Limit size to 10MB just to be safe
-    if (file.size > 10 * 1024 * 1024) {
-      showToast("PDF file size should not exceed 10MB.", "error");
+    // Limit size to 1.5MB to prevent proxy/serverless "413 Payload Too Large" issues with large base64 strings
+    if (file.size > 1.5 * 1024 * 1024) {
+      showToast("PDF size exceeds 1.5MB. Please use 'Direct URL / Link' for larger files or compress your PDF.", "error");
       return;
     }
 
@@ -1261,8 +1261,8 @@ export default function ClientDashboard() {
                                       <p className="text-[11px] font-semibold text-slate-300">
                                         Click to upload or drag & drop PDF catalog
                                       </p>
-                                      <p className="text-[9px] text-slate-500">
-                                        Only PDF format is supported (Max 10MB)
+                                      <p className="text-[9px] text-slate-400">
+                                        Only PDF format supported (Max 1.5MB. Use "Direct URL / Link" for larger files)
                                       </p>
                                     </div>
                                   </div>
