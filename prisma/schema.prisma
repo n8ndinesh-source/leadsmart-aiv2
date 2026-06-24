@@ -42,6 +42,7 @@ model Client {
   ownerWhatsApp              String?
   approvalNotificationNumber String?
   catalogPdfUrl              String?       @default("")
+  catalogPdfData             String?
 
   // Custom AI Assistant configuration and custom LLM API Key
   aiProvider                 String?       @default("gemini")

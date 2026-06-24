@@ -123,10 +123,11 @@ export default function ClientDashboard() {
       return;
     }
 
+    setIsUploadingCatalog(true);
+
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        setIsUploadingCatalog(true);
         const base64Data = reader.result as string;
         
         const response = await api.post<{ success: boolean; catalogPdfUrl: string; error?: string }>("/client/upload-catalog", {
@@ -149,6 +150,7 @@ export default function ClientDashboard() {
     };
 
     reader.onerror = () => {
+      setIsUploadingCatalog(false);
       showToast("Failed to read PDF file.", "error");
     };
 

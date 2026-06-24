@@ -909,36 +909,60 @@ router.post("/client/upload-catalog", authenticateToken, requireRole(["CLIENT"])
 
     const buffer = Buffer.from(base64String, "base64");
 
-    // Ensure the uploads directory exists
-    const uploadsDir = path.join(process.cwd(), "public/uploads");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    // Generate a unique clean filename
-    const sanitizedExt = filename && filename.toLowerCase().endsWith(".pdf") ? ".pdf" : ".pdf";
-    const cleanFilename = `catalog-${client.id}-${Date.now()}${sanitizedExt}`;
-    const filePath = path.join(uploadsDir, cleanFilename);
-
-    // Save the file
-    fs.writeFileSync(filePath, buffer);
-
-    const relativeUrl = `/uploads/${cleanFilename}`;
-
-    // Update Client in database
+    // We ALWAYS save the raw base64 string to the database to guarantee serverless / static hosting portability
     await prisma.client.update({
       where: { id: client.id },
-      data: { catalogPdfUrl: relativeUrl }
+      data: {
+        catalogPdfData: base64String,
+        catalogPdfUrl: `/api/catalog/${client.id}`
+      }
     });
+
+    // We also attempt to write a physical backup to the local filesystem (gracefully ignore failures in read-only environments)
+    try {
+      const uploadsDir = path.join(process.cwd(), "public/uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const sanitizedExt = filename && filename.toLowerCase().endsWith(".pdf") ? ".pdf" : ".pdf";
+      const cleanFilename = `catalog-${client.id}-${Date.now()}${sanitizedExt}`;
+      const filePath = path.join(uploadsDir, cleanFilename);
+      fs.writeFileSync(filePath, buffer);
+      console.log(`[Catalog Physical Backup] Saved successfully to local filesystem: ${filePath}`);
+    } catch (fsErr) {
+      console.warn("[Catalog Physical Backup] FS backup skipped (normal in read-only/serverless filesystems):", fsErr);
+    }
 
     res.json({
       success: true,
       message: "Catalog PDF uploaded and linked successfully!",
-      catalogPdfUrl: relativeUrl
+      catalogPdfUrl: `/api/catalog/${client.id}`
     });
   } catch (error: any) {
     console.error("Catalog upload error:", error);
     res.status(500).json({ error: `Failed to upload catalog file: ${error.message || error}` });
+  }
+});
+
+// PUBLIC ROUTE TO SERVE PRODUCT CATALOG PDF DIRECTLY FROM DATABASE
+router.get("/catalog/:clientId", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { clientId } = req.params;
+    const client = await prisma.client.findUnique({
+      where: { id: clientId }
+    });
+
+    if (!client || !client.catalogPdfData) {
+      return res.status(404).send("Product catalog PDF not found or not yet uploaded.");
+    }
+
+    const buffer = Buffer.from(client.catalogPdfData, "base64");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline; filename=catalog.pdf");
+    return res.send(buffer);
+  } catch (error: any) {
+    console.error("Error serving catalog PDF:", error);
+    return res.status(500).send("Failed to retrieve product catalog PDF.");
   }
 });
 
