@@ -41,6 +41,7 @@ model Client {
   whatsappStatus             String?       @default("Inactive") // Active, Inactive, Failed
   ownerWhatsApp              String?
   approvalNotificationNumber String?
+  catalogPdfUrl              String?       @default("")
 
   // Custom AI Assistant configuration and custom LLM API Key
   aiProvider                 String?       @default("gemini")
@@ -351,6 +352,7 @@ model ProductRecord {
   clientId     String
   client       Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name         String               // Easy-to-read title or display name (e.g., Bagasse Plate 10 Inch)
+  code         String               @default("") // Custom product/SKU code (e.g. BP-10N, etc.)
   category     String?              // Optional category
   status       String               @default("ACTIVE") // ACTIVE, OUT_OF_STOCK, INACTIVE etc.
   businessType String               // "Manufacturing" | "Real Estate"

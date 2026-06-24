@@ -66,7 +66,8 @@ export async function detectMessageIntent(messageText: string, clientId?: string
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build-intent-detector',
-        }
+        },
+        timeout: 120000,
       }
     });
 

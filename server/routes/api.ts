@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import fs from "fs";
+import path from "path";
 import { login, signup, forgotPassword } from "../controllers/authController.js";
 import { GoogleGenAI, Type } from "@google/genai";
 import { authenticateToken, requireRole, AuthenticatedRequest } from "../middleware/auth.js";
@@ -791,7 +793,8 @@ router.put("/client/profile", authenticateToken, requireRole(["CLIENT"]), async 
       city,
       ownerName, // Enables updating the user name
       ownerWhatsApp,
-      approvalNotificationNumber
+      approvalNotificationNumber,
+      catalogPdfUrl
     } = req.body;
 
     const client = await prisma.client.findUnique({
@@ -832,6 +835,7 @@ router.put("/client/profile", authenticateToken, requireRole(["CLIENT"]), async 
         aiAssistantName: req.body.aiAssistantName !== undefined ? req.body.aiAssistantName : client.aiAssistantName,
         ownerWhatsApp: ownerWhatsApp !== undefined ? ownerWhatsApp : client.ownerWhatsApp,
         approvalNotificationNumber: approvalNotificationNumber !== undefined ? approvalNotificationNumber : client.approvalNotificationNumber,
+        catalogPdfUrl: catalogPdfUrl !== undefined ? catalogPdfUrl : client.catalogPdfUrl,
       },
       include: {
         user: {
@@ -876,6 +880,65 @@ router.put("/client/profile", authenticateToken, requireRole(["CLIENT"]), async 
   } catch (error: any) {
     console.error("Client profile update error:", error);
     res.status(500).json({ error: `Failed to update profile settings parameters: ${error.message || error}` });
+  }
+});
+
+// UPLOAD COMPANY PRODUCT CATALOG PDF
+router.post("/client/upload-catalog", authenticateToken, requireRole(["CLIENT"]), async (req: AuthenticatedRequest, res): Promise<any> => {
+  try {
+    const userId = req.user?.id;
+    const { base64Data, filename } = req.body;
+
+    if (!base64Data) {
+      return res.status(400).json({ error: "No catalog file data provided." });
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { userId }
+    });
+
+    if (!client) {
+      return res.status(404).json({ error: "Client workspace not found." });
+    }
+
+    // Clean base64 string (strip data url scheme prefix if exists)
+    let base64String = base64Data;
+    if (base64Data.includes(";base64,")) {
+      base64String = base64Data.split(";base64,")[1];
+    }
+
+    const buffer = Buffer.from(base64String, "base64");
+
+    // Ensure the uploads directory exists
+    const uploadsDir = path.join(process.cwd(), "public/uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Generate a unique clean filename
+    const sanitizedExt = filename && filename.toLowerCase().endsWith(".pdf") ? ".pdf" : ".pdf";
+    const cleanFilename = `catalog-${client.id}-${Date.now()}${sanitizedExt}`;
+    const filePath = path.join(uploadsDir, cleanFilename);
+
+    // Save the file
+    fs.writeFileSync(filePath, buffer);
+
+    const relativeUrl = `/uploads/${cleanFilename}`;
+
+    // Update Client in database
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { catalogPdfUrl: relativeUrl }
+    });
+
+    res.json({
+      success: true,
+      message: "Catalog PDF uploaded and linked successfully!",
+      catalogPdfUrl: relativeUrl
+    });
+  } catch (error: any) {
+    console.error("Catalog upload error:", error);
+    res.status(500).json({ error: `Failed to upload catalog file: ${error.message || error}` });
   }
 });
 
@@ -929,7 +992,15 @@ router.post("/ai/test-connection", authenticateToken, async (req: AuthenticatedR
 
     if (provider === "gemini") {
       try {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
+            timeout: 120000,
+          }
+        });
         // Generate a tiny response to prove authentication validity
         const response = await safeGenerateContent(ai, {
           model: model || "gemini-3.5-flash",
@@ -1268,7 +1339,8 @@ const getGeminiClient = () => {
         httpOptions: {
           headers: {
             'User-Agent': 'aistudio-build',
-          }
+          },
+          timeout: 120000,
         }
       });
     } catch (err) {
@@ -2857,21 +2929,54 @@ router.post("/owner-alerts/:id/approve", authenticateToken, async (req: Authenti
           data: { status: "Quotation Sent" }
         });
 
-        // Simulate sending quotation PDF as an OUT message to lead
-        await prisma.message.create({
-          data: {
-            leadId: alert.leadId,
-            direction: "OUT",
-            content: `📄 *Quotation Approved & Sent*
+        const replyContent = `📄 *Quotation Approved & Sent*
 
 Our quote for your inquiry is ready!
 Quotation ID: *${quote.quotationNumber}*
 Total Amount: *₹${quote.grandTotal.toLocaleString("en-IN")}*
 
-You can view and secure payment or scheduling details. Let us know if you would like to proceed!`,
+You can view and secure payment or scheduling details. Let us know if you would like to proceed!`;
+
+        // Simulate sending quotation PDF as an OUT message to lead
+        await prisma.message.create({
+          data: {
+            leadId: alert.leadId,
+            direction: "OUT",
+            content: replyContent,
             timestamp: new Date()
           }
         });
+
+        // Dispatch to customer real WhatsApp if configured
+        const client = await prisma.client.findFirst({
+          where: { id: quote.clientId }
+        });
+        const lead = await prisma.lead.findUnique({
+          where: { id: alert.leadId }
+        });
+        if (client && lead && client.whatsappToken && client.whatsappPhoneId && lead.phoneNumber) {
+          try {
+            const cleanPhone = lead.phoneNumber.replace(/\D/g, "");
+            if (cleanPhone) {
+              console.log(`[WhatsApp Dispatch] Dispatching approved quote via WhatsApp to customer ${cleanPhone}`);
+              await fetch(`https://graph.facebook.com/v19.0/${client.whatsappPhoneId}/messages`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${client.whatsappToken}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  messaging_product: "whatsapp",
+                  to: cleanPhone,
+                  type: "text",
+                  text: { body: replyContent }
+                })
+              });
+            }
+          } catch (dispatchErr) {
+            console.error("[WhatsApp Dispatch Error] Approved quote dispatch failed", dispatchErr);
+          }
+        }
 
         // Record timeline activity log
         await prisma.leadActivity.create({
@@ -4921,7 +5026,7 @@ router.post("/products/records", authenticateToken, async (req: AuthenticatedReq
     const clientId = client?.id;
     if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
 
-    const { name, category, status, businessType, values } = req.body;
+    const { name, code, category, status, businessType, values } = req.body;
     if (!name || !businessType) {
       return res.status(400).json({ error: "Product Name and Business Type are required" });
     }
@@ -4930,6 +5035,7 @@ router.post("/products/records", authenticateToken, async (req: AuthenticatedReq
       data: {
         clientId,
         name,
+        code,
         category,
         status: status || "ACTIVE",
         businessType
@@ -4975,13 +5081,14 @@ router.put("/products/records/:id", authenticateToken, async (req: Authenticated
     const clientId = client?.id;
     if (!clientId) return res.status(401).json({ error: "Unauthorized client workspace" });
 
-    const { name, category, status, businessType, values } = req.body;
+    const { name, code, category, status, businessType, values } = req.body;
     const recordId = req.params.id;
 
     await prisma.productRecord.update({
       where: { id: recordId, clientId },
       data: {
         name,
+        code,
         category,
         status,
         businessType

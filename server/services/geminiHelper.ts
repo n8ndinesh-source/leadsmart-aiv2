@@ -107,14 +107,26 @@ export async function safeGenerateContent(
         errStr.includes("high demand") || 
         (err.status && err.status === 503);
 
-      const isTransient = isQuotaError || isTransientSpecial;
+      // Network connection issues, timeouts, or undici fetch failures are transient as well
+      const isNetworkOrTimeoutError = 
+        errStr.includes("fetch failed") ||
+        errStr.includes("timeout") ||
+        errStr.includes("Timeout") ||
+        errStr.includes("UND_ERR") ||
+        errStr.includes("ECONNRESET") ||
+        errStr.includes("socket hang up") ||
+        errStr.includes("ETIMEDOUT") ||
+        errStr.includes("ENOTFOUND") ||
+        errStr.includes("HeadersTimeoutError");
+
+      const isTransient = isQuotaError || isTransientSpecial || isNetworkOrTimeoutError;
 
       if (isTransient) {
         console.warn(`[Gemini AI Retry Warning] Transient error calling Gemini API with model '${targetModel}':`, errStr);
 
-        // Immediate circuit breaker and fallback if it is a quota limit error or service high demand (503)
+        // Immediate circuit breaker and fallback if it is a quota limit error, service high demand (503), or network/timeout
         // No point retrying with a delay for these, switch to fallback model immediately.
-        if (isQuotaError || isTransientSpecial) {
+        if (isQuotaError || isTransientSpecial || isNetworkOrTimeoutError) {
           if (targetModel === "gemini-3.5-flash") {
             console.warn(`[Gemini AI Helper] Setting isGemini35FlashQuotaExhausted = true and switching immediately to 'gemini-3.1-flash-lite' due to error: ${errStr}`);
             isGemini35FlashQuotaExhausted = true;

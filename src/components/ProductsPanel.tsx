@@ -45,6 +45,7 @@ interface ProductValue {
 interface ProductRecord {
   id: string;
   name: string;
+  code?: string;
   category: string | null;
   status: string; // ACTIVE, OUT_OF_STOCK, INACTIVE
   businessType: string; // Manufacturing, Real Estate
@@ -89,6 +90,7 @@ export default function ProductsPanel({ businessType = "" }: ProductsPanelProps)
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ProductRecord | null>(null);
   const [recordName, setRecordName] = useState("");
+  const [recordCode, setRecordCode] = useState("");
   const [recordCategory, setRecordCategory] = useState("");
   const [recordStatus, setRecordStatus] = useState("ACTIVE");
   const [recordBusinessType, setRecordBusinessType] = useState("Manufacturing");
@@ -101,26 +103,7 @@ export default function ProductsPanel({ businessType = "" }: ProductsPanelProps)
   } | null>(null);
 
   const getProductSKU = (rec: ProductRecord) => {
-    const cleanName = rec.name.trim().toUpperCase();
-    const firstLetter = cleanName.charAt(0) || "P";
-    const lastLetter = cleanName.charAt(cleanName.length - 1) || "X";
-    
-    // Filter records by businessType to keep the indices clean and independent per-business type
-    const sameTypeRecords = records.filter(r => 
-      r.businessType.toLowerCase() === rec.businessType.toLowerCase()
-    );
-
-    // Sort array stables by creation order
-    const sortedAll = sameTypeRecords.sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      if (timeA !== timeB) return timeA - timeB;
-      return a.id.localeCompare(b.id);
-    });
-    
-    const idx = sortedAll.findIndex(r => r.id === rec.id);
-    const seqNum = String(idx !== -1 ? idx + 1 : 1).padStart(3, "0");
-    return `SKU : ${firstLetter}${seqNum}${lastLetter}`;
+    return rec.code ? `Code: ${rec.code}` : "No Code";
   };
 
   useEffect(() => {
@@ -254,6 +237,7 @@ export default function ProductsPanel({ businessType = "" }: ProductsPanelProps)
     setEditingRecord(record);
     if (record) {
       setRecordName(record.name);
+      setRecordCode(record.code || "");
       setRecordCategory(record.category || "");
       setRecordStatus(record.status);
       setRecordBusinessType(record.businessType);
@@ -265,6 +249,7 @@ export default function ProductsPanel({ businessType = "" }: ProductsPanelProps)
       setRecordValues(mappedVals);
     } else {
       setRecordName("");
+      setRecordCode("");
       setRecordCategory("");
       setRecordStatus("ACTIVE");
       setRecordBusinessType(businessType || "Manufacturing");
@@ -301,6 +286,7 @@ export default function ProductsPanel({ businessType = "" }: ProductsPanelProps)
     try {
       const payload = {
         name: recordName,
+        code: recordCode,
         category: recordCategory || null,
         status: recordStatus,
         businessType: recordBusinessType,
@@ -942,6 +928,20 @@ export default function ProductsPanel({ businessType = "" }: ProductsPanelProps)
                   />
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-450 block">Product Code *</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. BP-10N" 
+                    value={recordCode}
+                    onChange={(e) => setRecordCode(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-900 rounded-lg py-2 px-3 text-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-slate-450 block">Target Industry *</label>
                   <select 

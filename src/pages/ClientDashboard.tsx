@@ -48,7 +48,10 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  Package
+  Package,
+  Upload,
+  Trash2,
+  Paperclip
 } from "lucide-react";
 
 const BUSINESS_TYPES = [
@@ -80,6 +83,8 @@ export default function ClientDashboard() {
   const [phone, setPhone] = useState("");
   const [ownerWhatsApp, setOwnerWhatsApp] = useState("");
   const [approvalNotificationNumber, setApprovalNotificationNumber] = useState("");
+  const [catalogPdfUrl, setCatalogPdfUrl] = useState("");
+  const [isUploadingCatalog, setIsUploadingCatalog] = useState(false);
   const [website, setWebsite] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [industry, setIndustry] = useState("");
@@ -100,6 +105,59 @@ export default function ClientDashboard() {
 
   const handleTogglePermission = (key: string) => {
     setAiPermissions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleCatalogUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      showToast("Only PDF files are supported for the product catalog.", "error");
+      return;
+    }
+
+    // Limit size to 10MB just to be safe
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("PDF file size should not exceed 10MB.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        setIsUploadingCatalog(true);
+        const base64Data = reader.result as string;
+        
+        const response = await api.post<{ success: boolean; catalogPdfUrl: string; error?: string }>("/client/upload-catalog", {
+          base64Data,
+          filename: file.name
+        });
+
+        if (response.success && response.catalogPdfUrl) {
+          setCatalogPdfUrl(response.catalogPdfUrl);
+          showToast("Catalog PDF uploaded and linked successfully!", "success");
+        } else {
+          showToast(response.error || "Upload failed. Please try again.", "error");
+        }
+      } catch (err: any) {
+        console.error("Upload handler error:", err);
+        showToast(err.message || "An error occurred during catalog upload.", "error");
+      } finally {
+        setIsUploadingCatalog(false);
+      }
+    };
+
+    reader.onerror = () => {
+      showToast("Failed to read PDF file.", "error");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCatalog = () => {
+    setCatalogPdfUrl("");
+    showToast("Catalog removed. Save profile settings to persist.", "info");
   };
 
   // WhatsApp states on client side
@@ -168,6 +226,7 @@ export default function ClientDashboard() {
       setPhone(clientObj.phone || "");
       setOwnerWhatsApp(clientObj.ownerWhatsApp || "");
       setApprovalNotificationNumber(clientObj.approvalNotificationNumber || "");
+      setCatalogPdfUrl(clientObj.catalogPdfUrl || "");
       setWebsite(clientObj.website || "");
       setBusinessType(clientObj.businessType || BUSINESS_TYPES[0]);
       setIndustry(clientObj.industry || "");
@@ -220,6 +279,7 @@ export default function ClientDashboard() {
         phone,
         ownerWhatsApp,
         approvalNotificationNumber,
+        catalogPdfUrl,
         website,
         businessType,
         industry,
@@ -1098,6 +1158,82 @@ export default function ClientDashboard() {
                           className="w-full bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-white font-mono"
                         />
                         <p className="text-[9px] text-slate-550 italic">Receives quotation approvals and custom order alerts.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Company Product Catalog PDF</label>
+                        
+                        {catalogPdfUrl ? (
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-[#0a0e1a] border border-slate-900 rounded-xl gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 bg-red-500/10 text-red-400 rounded-lg">
+                                <FileText className="w-6 h-6" />
+                              </div>
+                              <div className="space-y-0.5">
+                                <p className="text-[11px] font-semibold text-slate-200">Catalog PDF Active</p>
+                                <p className="text-[9px] font-mono text-indigo-400 truncate max-w-[250px] sm:max-w-md">
+                                  {catalogPdfUrl}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                              <a
+                                href={catalogPdfUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex-1 sm:flex-initial text-center px-3.5 py-1.5 bg-[#030611] hover:bg-slate-950 border border-slate-900 rounded-lg text-[10px] font-semibold text-indigo-400 tracking-wide transition"
+                              >
+                                View PDF
+                              </a>
+                              <button
+                                type="button"
+                                onClick={handleRemoveCatalog}
+                                className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition"
+                                title="Remove PDF Catalog"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="relative group border border-dashed border-slate-900 hover:border-indigo-500/50 bg-[#030611] rounded-xl p-6 transition flex flex-col items-center justify-center text-center">
+                            <input
+                              type="file"
+                              accept="application/pdf"
+                              onChange={handleCatalogUpload}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                              disabled={isUploadingCatalog}
+                            />
+                            
+                            {isUploadingCatalog ? (
+                              <div className="flex flex-col items-center space-y-2 py-2">
+                                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                                <p className="text-[11px] font-medium text-slate-300">Uploading and processing catalog PDF...</p>
+                                <p className="text-[9px] text-slate-500">Please wait while the file is saved</p>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center space-y-2.5">
+                                <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl group-hover:scale-110 transition duration-300">
+                                  <Upload className="w-6 h-6" />
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[11px] font-semibold text-slate-300">
+                                    Click to upload or drag & drop PDF catalog
+                                  </p>
+                                  <p className="text-[9px] text-slate-500">
+                                    Only PDF format is supported (Max 10MB)
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        <p className="text-[9px] text-indigo-400 italic">
+                          This PDF catalog is automatically shared with prospective customers on their first WhatsApp inquiry, prompting them to select products.
+                        </p>
                       </div>
                     </div>
 

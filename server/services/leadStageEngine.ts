@@ -91,7 +91,8 @@ export async function detectLeadStage(leadId: string): Promise<StageDetectionRes
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build-lead-stage-engine',
-        }
+        },
+        timeout: 120000,
       }
     });
 

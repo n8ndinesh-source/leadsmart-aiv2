@@ -37,7 +37,8 @@ export async function generateSalesResponse(
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build-sales-executive-engine',
-        }
+        },
+        timeout: 120000,
       }
     });
 

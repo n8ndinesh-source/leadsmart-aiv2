@@ -33,7 +33,8 @@ export async function analyzeQualificationSpecs(
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build-industry-qual-engine',
-        }
+        },
+        timeout: 120000,
       }
     });
 

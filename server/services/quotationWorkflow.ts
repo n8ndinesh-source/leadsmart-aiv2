@@ -8,7 +8,8 @@ const ai = new GoogleGenAI({
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
-    }
+    },
+    timeout: 120000,
   }
 });
 
@@ -17,6 +18,10 @@ interface ExtractedSpecs {
   product: string | null;
   size: string | null;
   quantity: number | null;
+  productCode?: string | null;
+  deliveryAddress?: string | null;
+  isCustomRequest?: boolean;
+  customProductDetails?: string | null;
 }
 
 /**
@@ -27,14 +32,20 @@ export async function extractSpecsFromMessage(message: string, context?: string)
     console.log(`[AI Spec Extractor] Extracting product specifications for message: "${message}". Context provided: ${!!context}`);
     
     const systemInstruction = `You are an expert product spec parser. Extract product request specifications from user messages.
-We also provide some recent conversation context to help you resolve pronouns or implicit products (e.g., if the assistant asks "what size bagasse plate do you want?" and the customer replies "10 inches, no compartment", then the product is "Bagasse Plate", the size is "10 inches, no compartment").
+We also provide some recent conversation context to help you resolve pronouns, implicit products, or codes (e.g., if the assistant asks "what size bagasse plate do you want?" and the customer replies "10 inches, no compartment", then the product is "Bagasse Plate", the size is "10 inches, no compartment").
+
+Analyze the message to see if they mentioned a product code (e.g. BP-10N, areca-01) or if they are requesting a custom-made product that does not have a standard catalog code.
 
 Always return a raw JSON object matching this schema EXACTLY:
 {
-  "isProductRequest": boolean, // True if the message specifies or requests a specific product/item, size, and/or quantity for an order or quotation.
-  "product": string | null,    // Name of the product (e.g., "Paper Bag", "Corrugated Box", "Bagasse Plate", etc.)
-  "size": string | null,       // Format of dimensions/size (e.g., "H28×W12×G5", "10 inches", "12x12" etc.)
-  "quantity": number | null    // Numerical quantity requested (e.g., 5000), parsed to integer.
+  "isProductRequest": boolean,         // True if the message specifies or requests a specific product/item, code, size, and/or quantity for an order or quotation.
+  "product": string | null,            // Name of the product (e.g., "Paper Bag", "Corrugated Box", "Bagasse Plate", etc.)
+  "size": string | null,               // Format of dimensions/size (e.g., "H28×W12×G5", "10 inches", "12x12" etc.)
+  "quantity": number | null,           // Numerical quantity requested (e.g., 5000), parsed to integer.
+  "productCode": string | null,        // Product code if mentioned by the customer (e.g., "BP-10N", "ARECA-01")
+  "deliveryAddress": string | null,    // Delivery address if provided
+  "isCustomRequest": boolean,          // True if the user asks for a customized, custom-designed, or bespoke product that doesn't seem to be a standard catalog code item.
+  "customProductDetails": string | null // Details of the custom request
 }
 Do not include any markdown format tags like \`\`\`json. Return only the raw JSON string.`;
 
@@ -98,8 +109,8 @@ export async function processInboundMessageWorkflow(leadId: string, message: str
 
     // 1. Extract specifications with conversation context
     const specs = await extractSpecsFromMessage(message, context);
-    if (!specs.isProductRequest || !specs.product) {
-      console.log(`[Quotation Workflow] Message doesn't represent a product request. Skipping workflow.`);
+    if (!specs.isProductRequest && !specs.productCode && !specs.isCustomRequest) {
+      console.log(`[Quotation Workflow] Message doesn't represent a product request or custom request. Skipping workflow.`);
       return;
     }
 
@@ -119,41 +130,59 @@ export async function processInboundMessageWorkflow(leadId: string, message: str
       include: { values: { include: { productField: true } } }
     });
 
-    // Strategy: Search for exact name match (normalized) or use Gemini comparison
+    // Strategy: Search for exact product code first, then exact name match (normalized) or use Gemini comparison
     let matchedProduct: any = null;
-    const normalizedQueryProduct = specs.product.toLowerCase().replace(/\s+/g, "");
 
-    for (const p of products) {
-      const normalizedName = p.name.toLowerCase().replace(/\s+/g, "");
-      if (normalizedName === normalizedQueryProduct) {
-        matchedProduct = p;
-        break;
+    // Check by product code first
+    if (specs.productCode) {
+      const normalizedQueryCode = specs.productCode.toLowerCase().replace(/[^a-z0-9]/g, "");
+      for (const p of products) {
+        if (p.code) {
+          const normalizedCode = p.code.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (normalizedCode === normalizedQueryCode) {
+            matchedProduct = p;
+            break;
+          }
+        }
       }
     }
 
-    if (!matchedProduct && products.length > 0) {
-      // Use lightweight Gemini comparison to cross-check catalog
-      console.log(`[Quotation Workflow] Doing semantic verification for catalog matching...`);
-      const catalogList = products.map(p => `ID: ${p.id}, Name: ${p.name}`).join("\n");
-      const systemInstruction = `Verify if the user requested product '${specs.product}' is already present in this catalog:
+    // Fallback to name matching if code doesn't match and they didn't explicitly request custom
+    if (!matchedProduct && !specs.isCustomRequest && specs.product) {
+      const normalizedQueryProduct = specs.product.toLowerCase().replace(/\s+/g, "");
+
+      for (const p of products) {
+        const normalizedName = p.name.toLowerCase().replace(/\s+/g, "");
+        if (normalizedName === normalizedQueryProduct) {
+          matchedProduct = p;
+          break;
+        }
+      }
+
+      if (!matchedProduct && products.length > 0) {
+        // Use lightweight Gemini comparison to cross-check catalog
+        console.log(`[Quotation Workflow] Doing semantic verification for catalog matching...`);
+        const catalogList = products.map(p => `ID: ${p.id}, Code: ${p.code || "N/A"}, Name: ${p.name}`).join("\n");
+        const systemInstruction = `Verify if the user requested product '${specs.product}' or code '${specs.productCode || ""}' is already present in this catalog:
 ${catalogList}
 Return the matching ID as JSON {\"matchedId\": \"some-uuid\" | null}. If no highly relevant match exists, return null.`;
 
-      try {
-        const response = await safeGenerateContent(ai, {
-          model: "gemini-3.5-flash",
-          contents: "Find match",
-          config: {
-            systemInstruction,
-            responseMimeType: "application/json",
+        try {
+          const response = await safeGenerateContent(ai, {
+            model: "gemini-3.5-flash",
+            contents: "Find match",
+            config: {
+              systemInstruction,
+              responseMimeType: "application/json",
+            }
+          });
+          const matchResult = JSON.parse(response.text || "{}");
+          if (matchResult && matchResult.matchedId) {
+            matchedProduct = products.find(p => p.id === matchResult.matchedId);
           }
-        });
-        const matchResult = JSON.parse(response.text || "{}");
-        if (matchResult && matchResult.matchedId) {
-          matchedProduct = products.find(p => p.id === matchResult.matchedId);
+        } catch (err) {
+          console.error("[Quotation Workflow] LLM catalog verify failed:", err);
         }
-      } catch (err) {
-        console.error("[Quotation Workflow] LLM catalog verify failed:", err);
       }
     }
 
@@ -280,7 +309,7 @@ ${quotationNumber}`;
       console.log(`[Quotation Workflow] Generated Quotation ${quotationNumber} with PENDING_APPROVAL status. Alert ID: ${alert.id}`);
 
     } else {
-      console.log(`[Quotation Workflow Missing] Product "${specs.product}" not found. Executing Scenario 2.`);
+      console.log(`[Quotation Workflow Missing] Product not found or custom request. Executing Scenario 2.`);
 
       // Flag custom order mismatch on Lead - transition status to "Custom Order" and stage to "CUSTOM_ORDER"
       await prisma.lead.update({
@@ -300,15 +329,18 @@ Lead:
 ${lead.name}
 
 Product:
-${specs.product}
+${specs.product || specs.productCode || "Custom Product"}
 
 Size:
-${specs.size || "H28×W12×G5"}
+${specs.size || "Custom / Specs Requested"}
 
 Quantity:
-${specs.quantity || 5000}
+${specs.quantity || "N/A"}
 
-This product does *not* exist in your Products database. Owner action is required.`;
+Details:
+${specs.customProductDetails || "Custom product specifications requested by customer."}
+
+This product does *not* exist in your Products database or is marked as custom. Owner action is required.`;
 
       const alert = await prisma.ownerAlert.create({
         data: {

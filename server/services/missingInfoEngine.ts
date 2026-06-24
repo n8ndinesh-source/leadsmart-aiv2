@@ -66,7 +66,8 @@ export async function analyzeMissingInformation(
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build-missing-info-engine',
-        }
+        },
+        timeout: 120000,
       }
     });
 

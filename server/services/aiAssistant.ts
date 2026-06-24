@@ -382,7 +382,8 @@ export async function handleAICommand(
         httpOptions: {
           headers: {
             'User-Agent': 'aistudio-build',
-          }
+          },
+          timeout: 120000,
         }
       });
 

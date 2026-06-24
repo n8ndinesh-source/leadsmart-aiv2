@@ -317,7 +317,8 @@ export async function analyzeLead(leadId: string): Promise<DecisionEngineOutput>
         httpOptions: {
           headers: {
             'User-Agent': 'aistudio-build',
-          }
+          },
+          timeout: 120000,
         }
       });
 
@@ -335,12 +336,16 @@ You must output a single JSON document. Your output must strictly match the foll
 - "nextBestAction": A clear action like: "Send follow-up message now", "Offer discount", "Schedule call", "Send quotation", "Wait 24 hours", "Mark as lost lead", or "Escalate to human sales agent". Choose the absolute single best action for this sales opportunity.
 - "followUpRecommendation": Dynamic recommendation to adjust followups (e.g. "Increase urgency for hot leads", "Reduce spam for cold leads", "Stop follow-ups if user is not responding", "Restart follow-ups if re-engaged").
 - "suggestedReply": The absolute best response message text based on the customer's overall requirements, cumulative conversation history, and classified intent memory.
-  CRITICAL RESPONSE STYLE RULES FOR "suggestedReply":
-  1. KEEP IT EXTREMELY BRIEF: Limit the suggestedReply to EXACTLY 1 OR 2 SENTENCES (Maximum 35-40 words). No exceptions.
-  2. NO LISTS OR BULLET POINTS: Under no circumstances should you list multiple questions, options, or numbered inquiries (such as "1. What size? 2. What printing?").
-  3. ONE STEP AT A TIME: Ask for only ONE detail next or answer ONE question at a time. Guide the customer step-by-step through a natural conversational sequence.
-  4. NO CORPORATE TEMPLATE FLUFF: Do not start with generic corporate greetings or advertisement boilerplates like "Thank you for reaching out to Ecopek! We specialize in premium bagasse plates and decompostable areca leaf tableware...". Jump straight into a conversational, helpful human-like tone, e.g., "We can absolutely help you with an order of [Quantity] [Product]. [Ask one simple question for next step]" or "Thanks for the details! Understood on [Specification]. Could we get your [Next Detail, e.g. delivery pincode] to calculate shipping?"
-  5. NATURAL ENVELOPIST STYLE: Address actual, core business needs (such as quantities, sizes, printing, or specifications) mentioned anywhere in their recent messages. Maintain extreme brevity and casual-yet-highly-professional human sales energy.
+  CRITICAL RESPONSE STYLE & CATALOG WORKFLOW RULES FOR "suggestedReply":
+  1. CATALOG WORKFLOW:
+     - On the FIRST inquiry (if no outbound messages sent yet), the response MUST send the catalog link: "${clientInfo?.catalogPdfUrl || ""}" and ask them to check the product code, quantity, and delivery address.
+     - If the customer shares a product code, tell them we are preparing a quotation for their inquiry and submitting it to our owner for approval, and we will send it immediately upon approval.
+     - If they request a custom product, ask them for details/specifications, and let them know that we have updated our pipeline and notified our owner/management about their custom request.
+  2. KEEP IT EXTREMELY BRIEF: Limit the suggestedReply to EXACTLY 1 OR 2 SENTENCES (Maximum 35-40 words). No exceptions.
+  3. NO LISTS OR BULLET POINTS: Under no circumstances should you list multiple questions, options, or numbered inquiries (such as "1. What size? 2. What printing?").
+  4. ONE STEP AT A TIME: Ask for only ONE detail next or answer ONE question at a time. Guide the customer step-by-step through a natural conversational sequence.
+  5. NO CORPORATE TEMPLATE FLUFF: Do not start with generic corporate greetings or advertisement boilerplates like "Thank you for reaching out to Ecopek! We specialize in premium bagasse plates and decompostable areca leaf tableware...". Jump straight into a conversational, helpful human-like tone, e.g., "We can absolutely help you with an order of [Quantity] [Product]. [Ask one simple question for next step]" or "Thanks for the details! Understood on [Specification]. Could we get your [Next Detail, e.g. delivery pincode] to calculate shipping?"
+  6. NATURAL ENVELOPIST STYLE: Address actual, core business needs (such as quantities, sizes, printing, or specifications) mentioned anywhere in their recent messages. Maintain extreme brevity and casual-yet-highly-professional human sales energy.
 - "revenueImpact": Exactly one of "Low", "Medium", "High".
 
 Analyze correctly as a smart sales manager prioritizing high conversion, minimum spam, highlighting high priority revenue lines, and using the customer message intent memory signals.`;
@@ -412,6 +417,21 @@ ${aiConfig ? `
       console.error("Gemini AI Decision Error in analyzeLead:", err);
       console.log(`Gemini AI Decision info: fallback evaluated successfully`);
     }
+  }
+
+  // Force Catalog Workflow for the very first inquiry (if no outbound messages have been sent yet)
+  if (messagesOut.length === 0) {
+    let suggestedReply = `Hello ${lead.name || "there"}! Thank you for your inquiry. `;
+    const catalogUrl = clientInfo?.catalogPdfUrl || "";
+    if (catalogUrl) {
+      suggestedReply += `Please check our product catalog here: ${catalogUrl}. `;
+    } else {
+      suggestedReply += `We will share our product catalog with you shortly. `;
+    }
+    suggestedReply += `Kindly review the products and reply with your requirement (Product Code, Quantity, and Delivery Address) so we can prepare your quotation.`;
+    
+    decision.suggestedReply = suggestedReply;
+    decision.nextBestAction = "Send catalog PDF";
   }
 
   // Derive commercial priority based on new computed lead score:

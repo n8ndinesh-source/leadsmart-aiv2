@@ -10,6 +10,7 @@ if (process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith("postgresql
 
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { exec } from "child_process";
 import { createServer as createViteServer } from "vite";
 import bcrypt from "bcryptjs";
@@ -138,9 +139,18 @@ async function seedDefaultUsers() {
 async function startServer() {
   const app = express();
 
+  // Ensure public/uploads directory exists for runtime uploads (catalogs, etc.)
+  const uploadsDir = path.join(process.cwd(), "public/uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
   // Parse incoming JSON payloads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  
+  // Statically serve uploads folder so it works in both dev and prod at /uploads/*
+  app.use("/uploads", express.static(uploadsDir));
   
   startFollowUpScheduler();
 
