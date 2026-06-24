@@ -85,6 +85,8 @@ export default function ClientDashboard() {
   const [approvalNotificationNumber, setApprovalNotificationNumber] = useState("");
   const [catalogPdfUrl, setCatalogPdfUrl] = useState("");
   const [isUploadingCatalog, setIsUploadingCatalog] = useState(false);
+  const [catalogMethod, setCatalogMethod] = useState<"upload" | "url">("upload");
+  const [tempCatalogUrl, setTempCatalogUrl] = useState("");
   const [website, setWebsite] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [industry, setIndustry] = useState("");
@@ -159,6 +161,7 @@ export default function ClientDashboard() {
 
   const handleRemoveCatalog = () => {
     setCatalogPdfUrl("");
+    setTempCatalogUrl("");
     showToast("Catalog removed. Save profile settings to persist.", "info");
   };
 
@@ -228,7 +231,14 @@ export default function ClientDashboard() {
       setPhone(clientObj.phone || "");
       setOwnerWhatsApp(clientObj.ownerWhatsApp || "");
       setApprovalNotificationNumber(clientObj.approvalNotificationNumber || "");
-      setCatalogPdfUrl(clientObj.catalogPdfUrl || "");
+      const loadedUrl = clientObj.catalogPdfUrl || "";
+      setCatalogPdfUrl(loadedUrl);
+      setTempCatalogUrl(loadedUrl);
+      if (loadedUrl && (loadedUrl.startsWith("http://") || loadedUrl.startsWith("https://"))) {
+        setCatalogMethod("url");
+      } else {
+        setCatalogMethod("upload");
+      }
       setWebsite(clientObj.website || "");
       setBusinessType(clientObj.businessType || BUSINESS_TYPES[0]);
       setIndustry(clientObj.industry || "");
@@ -1200,34 +1210,91 @@ export default function ClientDashboard() {
                             </div>
                           </div>
                         ) : (
-                          <div className="relative group border border-dashed border-slate-900 hover:border-indigo-500/50 bg-[#030611] rounded-xl p-6 transition flex flex-col items-center justify-center text-center">
-                            <input
-                              type="file"
-                              accept="application/pdf"
-                              onChange={handleCatalogUpload}
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                              disabled={isUploadingCatalog}
-                            />
-                            
-                            {isUploadingCatalog ? (
-                              <div className="flex flex-col items-center space-y-2 py-2">
-                                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                                <p className="text-[11px] font-medium text-slate-300">Uploading and processing catalog PDF...</p>
-                                <p className="text-[9px] text-slate-500">Please wait while the file is saved</p>
+                          <div className="space-y-3">
+                            <div className="flex bg-[#030611] border border-slate-900 p-1 rounded-lg max-w-[280px]">
+                              <button
+                                type="button"
+                                onClick={() => setCatalogMethod("upload")}
+                                className={`flex-1 py-1.5 px-3 rounded-md text-[10px] font-bold uppercase tracking-wider transition ${
+                                  catalogMethod === "upload"
+                                    ? "bg-indigo-600 text-white"
+                                    : "text-slate-400 hover:text-white"
+                                }`}
+                              >
+                                Upload File
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCatalogMethod("url")}
+                                className={`flex-1 py-1.5 px-3 rounded-md text-[10px] font-bold uppercase tracking-wider transition ${
+                                  catalogMethod === "url"
+                                    ? "bg-indigo-600 text-white"
+                                    : "text-slate-400 hover:text-white"
+                                }`}
+                              >
+                                Direct URL / Link
+                              </button>
+                            </div>
+
+                            {catalogMethod === "upload" ? (
+                              <div className="relative group border border-dashed border-slate-900 hover:border-indigo-500/50 bg-[#030611] rounded-xl p-6 transition flex flex-col items-center justify-center text-center">
+                                <input
+                                  type="file"
+                                  accept="application/pdf"
+                                  onChange={handleCatalogUpload}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                  disabled={isUploadingCatalog}
+                                />
+                                
+                                {isUploadingCatalog ? (
+                                  <div className="flex flex-col items-center space-y-2 py-2">
+                                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                                    <p className="text-[11px] font-medium text-slate-300">Uploading and processing catalog PDF...</p>
+                                    <p className="text-[9px] text-slate-500">Please wait while the file is saved</p>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center space-y-2.5">
+                                    <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl group-hover:scale-110 transition duration-300">
+                                      <Upload className="w-6 h-6" />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[11px] font-semibold text-slate-300">
+                                        Click to upload or drag & drop PDF catalog
+                                      </p>
+                                      <p className="text-[9px] text-slate-500">
+                                        Only PDF format is supported (Max 10MB)
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ) : (
-                              <div className="flex flex-col items-center space-y-2.5">
-                                <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl group-hover:scale-110 transition duration-300">
-                                  <Upload className="w-6 h-6" />
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-[11px] font-semibold text-slate-300">
-                                    Click to upload or drag & drop PDF catalog
-                                  </p>
-                                  <p className="text-[9px] text-slate-500">
-                                    Only PDF format is supported (Max 10MB)
-                                  </p>
-                                </div>
+                              <div className="flex gap-2 items-center">
+                                <input
+                                  type="text"
+                                  placeholder="https://example.com/my-catalog.pdf"
+                                  value={tempCatalogUrl}
+                                  onChange={(e) => setTempCatalogUrl(e.target.value)}
+                                  className="flex-1 bg-[#030611] border border-slate-900 focus:border-indigo-500 rounded-lg p-2.5 outline-none text-white font-mono text-[11px]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!tempCatalogUrl.trim()) {
+                                      showToast("Please enter a valid PDF URL first.", "error");
+                                      return;
+                                    }
+                                    if (!tempCatalogUrl.startsWith("http://") && !tempCatalogUrl.startsWith("https://")) {
+                                      showToast("URL must start with http:// or https://", "error");
+                                      return;
+                                    }
+                                    setCatalogPdfUrl(tempCatalogUrl.trim());
+                                    showToast("Catalog PDF link set! Remember to save profile settings below.", "success");
+                                  }}
+                                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-semibold transition"
+                                >
+                                  Link URL
+                                </button>
                               </div>
                             )}
                           </div>
