@@ -479,20 +479,12 @@
 
           <!-- Company Meta details Row in Header -->
           <div class="px-7 py-3 flex items-center justify-between -mt-3.5">
-            <div class="flex items-center space-x-3.5">
+            <div id="logo-and-name-container" class="flex items-center space-x-3.5">
               <!-- Elegant Circular Logo container -->
-              <div id="final-brand-logo" class="w-14 h-14 rounded-full bg-white flex items-center justify-center p-1 select-none" style="transform: translateY(-8px);">
-                <!-- Vector flame-like corporate logo (ECOPEK/THYNK style) -->
-                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-11 h-11" id="vector-logo-svg">
-                  <!-- Abstract overlapping leaves representing growth -->
-                  <path d="M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15" fill="#e2a326"/>
-                  <path d="M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15" fill="#0c353a"/>
-                  <path d="M43 35 C28 50, 32 72, 48 83 C40 70, 38 52, 43 35" fill="#f39c12"/>
-                </svg>
+              <div id="final-brand-logo" class="w-14 h-14 rounded-full bg-white flex items-center justify-center p-1 select-none" style="transform: translateY(-8px); display: none;">
               </div>
               <div style="transform: translateY(-4px);">
                 <h2 id="final-corporate-name" class="text-lg font-black font-display tracking-tight text-slate-900 leading-none" style="letter-spacing: -0.025em;">ECOPEK UNLIMITED</h2>
-                <span id="final-corporate-slogan" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mt-0.5">Automated Bio Solutions</span>
               </div>
             </div>
             <div class="text-right">
@@ -755,15 +747,10 @@
         const logoDiv = document.getElementById('final-brand-logo');
         if (url) {
           logoDiv.innerHTML = `<img src="${url}" class="w-12 h-12 rounded-full object-contain" referrerPolicy="no-referrer" />`;
+          logoDiv.style.display = 'flex';
         } else {
-          // restore standard vector logo
-          logoDiv.innerHTML = `
-            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-11 h-11" id="vector-logo-svg">
-              <path d="M50 15 C30 35, 30 65, 50 85 C55 75, 55 55, 50 45 C45 35, 45 25, 50 15" fill="#e2a326"/>
-              <path d="M50 15 C65 30, 68 55, 56 68 C45 50, 48 35, 50 15" fill="#0c353a"/>
-              <path d="M43 35 C28 50, 32 72, 48 83 C40 70, 38 52, 43 35" fill="#f39c12"/>
-            </svg>
-          `;
+          logoDiv.innerHTML = '';
+          logoDiv.style.display = 'none';
         }
       } else if (assetKey === 'watermark') {
         const wrapper = document.getElementById('pdf-watermark-wrapper');
@@ -784,12 +771,19 @@
         }
       } else if (assetKey === 'headerBanner') {
         const bannerDiv = document.getElementById('final-header-banner');
+        const logoNameContainer = document.getElementById('logo-and-name-container');
         if (url) {
           bannerDiv.style.backgroundImage = `url('${url}')`;
           document.getElementById('premium-header-svg').style.display = 'none';
+          if (logoNameContainer) {
+            logoNameContainer.style.display = 'none';
+          }
         } else {
           bannerDiv.style.backgroundImage = '';
           document.getElementById('premium-header-svg').style.display = 'block';
+          if (logoNameContainer) {
+            logoNameContainer.style.display = 'flex';
+          }
         }
       } else if (assetKey === 'footerBanner') {
         const footBanner = document.getElementById('final-footer-banner');

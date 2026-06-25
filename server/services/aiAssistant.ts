@@ -242,8 +242,9 @@ export async function handleAICommand(
 
           case "DELETE_LEAD": {
             const leadObj = await prisma.lead.findUnique({ where: { id: params.leadId } });
-            await prisma.lead.delete({
+            await prisma.lead.update({
               where: { id: params.leadId },
+              data: { conversationStatus: "Deleted" }
             });
             executionMessage = `Lead "${leadObj?.name || "Prospect"}" has been successfully deleted along with notes and followups.`;
             break;
@@ -277,11 +278,12 @@ export async function handleAICommand(
           case "DELETE_MULTIPLE_LEADS": {
             const count = params.leadIds?.length || 0;
             if (count > 0) {
-              await prisma.lead.deleteMany({
+              await prisma.lead.updateMany({
                 where: {
                   id: { in: params.leadIds },
                   clientId: clientId,
                 },
+                data: { conversationStatus: "Deleted" }
               });
             }
             executionMessage = `Purged and cleared ${count} junk leads from the CRM system successfully.`;
@@ -1055,8 +1057,9 @@ Our system acts as your Chief Sales Officer (CSO) advisor tailored for the **${c
 
             case "DELETE_LEAD": {
               const leadObj = await prisma.lead.findUnique({ where: { id: params.leadId } });
-              await prisma.lead.delete({
+              await prisma.lead.update({
                 where: { id: params.leadId },
+                data: { conversationStatus: "Deleted" }
               });
               executionMessage = `Lead "${leadObj?.name || "Prospect"}" has been successfully deleted along with notes and followups.`;
               break;
@@ -1090,11 +1093,12 @@ Our system acts as your Chief Sales Officer (CSO) advisor tailored for the **${c
             case "DELETE_MULTIPLE_LEADS": {
               const count = params.leadIds?.length || 0;
               if (count > 0) {
-                await prisma.lead.deleteMany({
+                await prisma.lead.updateMany({
                   where: {
                     id: { in: params.leadIds },
                     clientId: clientId,
                   },
+                  data: { conversationStatus: "Deleted" }
                 });
               }
               executionMessage = `Purged and cleared ${count} junk leads from the CRM system successfully.`;

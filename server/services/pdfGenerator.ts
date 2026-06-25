@@ -188,46 +188,38 @@ export function generateQuotationPdf(quotation: any, client: any, lead: any, tem
         doc.restore();
       }
 
-      // Circular Logo Badge / Icon bounding box
-      doc.circle(64, 92, 24).fill("#FFFFFF");
-      let logoExposed = false;
-      if (template?.logo) {
-        try {
-          const logoBin = parseBase64Image(template.logo);
-          if (logoBin) {
-            doc.save();
-            doc.circle(64, 92, 22).clip();
-            doc.image(logoBin, 42, 70, { width: 44, height: 44 });
-            doc.restore();
-            logoExposed = true;
-          } else if (template.logo.startsWith("http")) {
-            doc.save();
-            doc.circle(64, 92, 22).clip();
-            doc.image(template.logo, 42, 70, { width: 44, height: 44 });
-            doc.restore();
-            logoExposed = true;
+      // Circular Logo Badge / Icon bounding box and company name (only if no custom header banner is present)
+      if (!hasHeaderBanner) {
+        doc.circle(64, 92, 24).fill("#FFFFFF");
+        let logoExposed = false;
+        if (template?.logo) {
+          try {
+            const logoBin = parseBase64Image(template.logo);
+            if (logoBin) {
+              doc.save();
+              doc.circle(64, 92, 22).clip();
+              doc.image(logoBin, 42, 70, { width: 44, height: 44 });
+              doc.restore();
+              logoExposed = true;
+            } else if (template.logo.startsWith("http")) {
+              doc.save();
+              doc.circle(64, 92, 22).clip();
+              doc.image(template.logo, 42, 70, { width: 44, height: 44 });
+              doc.restore();
+              logoExposed = true;
+            }
+          } catch (err) {
+            console.warn("Could not draw template logo in PDF, falling back to corporate vector:", err);
           }
-        } catch (err) {
-          console.warn("Could not draw template logo in PDF, falling back to corporate vector:", err);
         }
+        // Title header texts matching HTML style
+        const textX = logoExposed ? 100 : 50;
+        doc.fillColor("#1E293B").fontSize(13.5).font("Helvetica-Bold").text(
+          template?.companyName || client?.companyName || "My Business Ltd",
+          textX,
+          80
+        );
       }
-      if (!logoExposed) {
-        doc.circle(64, 92, 20).fill("#0C353A");
-        doc.circle(64, 92, 17).strokeColor("#E2A326").lineWidth(1.5).stroke();
-        doc.circle(64, 92, 8).fill("#E2A326");
-      }
-
-      // Title header texts matching HTML style
-      doc.fillColor("#1E293B").fontSize(13.5).font("Helvetica-Bold").text(
-        template?.companyName || client?.companyName || "EcoPek Ltd",
-        100,
-        80
-      );
-      doc.fillColor("#94A3B8").fontSize(8.5).font("Helvetica-Bold").text(
-        "Automated Sales Division",
-        100,
-        97
-      );
 
       doc.fillColor("#94A3B8").fontSize(9).font("Helvetica-Bold").text(
         "OFFICIAL PROPOSAL",

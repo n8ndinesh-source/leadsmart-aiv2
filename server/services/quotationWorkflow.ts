@@ -349,6 +349,26 @@ Return the matching ID as JSON {\"matchedId\": \"some-uuid\" | null}. If no high
       const recipientPhone = client.approvalNotificationNumber || client.ownerWhatsApp || "+91 9876543210";
       const leadName = lead.name;
 
+      // 1. Create alert row first to obtain ID
+      const alert = await prisma.ownerAlert.create({
+        data: {
+          clientId: client.id,
+          leadId: lead.id,
+          title: "📄 Quotation Approval Required",
+          message: "", // temporary
+          type: "QUOTATION_APPROVAL",
+          status: "PENDING",
+          amount: grandTotal,
+          quoteId: quote.id,
+          specs: JSON.stringify(specs)
+        }
+      });
+
+      // 2. Construct final alertMessage with quick actions
+      const appUrl = (process.env.APP_URL && process.env.APP_URL !== "MY_APP_URL")
+        ? process.env.APP_URL.replace(/\/$/, "")
+        : "https://ais-dev-y6jintnc54eajtfn3zgjb2-863540858039.asia-east1.run.app";
+
       const alertMessage = `📄 Quotation Approval Required
 
 Lead:
@@ -367,20 +387,20 @@ Amount:
 ₹${grandTotal.toLocaleString('en-IN')}
 
 Quotation ID:
-${quotationNumber}`;
+${quotationNumber}
 
-      const alert = await prisma.ownerAlert.create({
-        data: {
-          clientId: client.id,
-          leadId: lead.id,
-          title: "📄 Quotation Approval Required",
-          message: alertMessage,
-          type: "QUOTATION_APPROVAL",
-          status: "PENDING",
-          amount: grandTotal,
-          quoteId: quote.id,
-          specs: JSON.stringify(specs)
-        }
+----------------------
+⚡ *QUICK ACTIONS:*
+✅ Approve Quotation:
+${appUrl}/api/public/owner-alerts/${alert.id}/approve
+
+❌ Reject Quotation:
+${appUrl}/api/public/owner-alerts/${alert.id}/reject`;
+
+      // 3. Update alert record with final message
+      await prisma.ownerAlert.update({
+        where: { id: alert.id },
+        data: { message: alertMessage }
       });
 
       // Actual WhatsApp notification dispatch to Owner's real WhatsApp number

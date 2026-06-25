@@ -2043,7 +2043,9 @@ router.get(["/leads", "/lead"], authenticateToken, async (req: AuthenticatedRequ
       activeClientId = clientIdParam;
     }
 
-    const where: any = {};
+    const where: any = {
+      conversationStatus: { not: "Deleted" }
+    };
     if (activeClientId) {
       where.clientId = activeClientId;
     }
@@ -2264,8 +2266,9 @@ router.delete(["/leads/:id", "/lead/:id"], authenticateToken, async (req: Authen
       return res.status(404).json({ error: "Lead not found or access denied." });
     }
 
-    await prisma.lead.delete({
-      where: { id }
+    await prisma.lead.update({
+      where: { id },
+      data: { conversationStatus: "Deleted" }
     });
 
     res.json({ message: "Lead removed successfully.", id });
@@ -3917,7 +3920,9 @@ router.get("/followups/due", authenticateToken, async (req: AuthenticatedRequest
 
     // Fetch leads to calculate Replied Leads and Missed Revenue/Opportunities
     const clientLeads = await prisma.lead.findMany({
-      where: activeClientId ? { clientId: activeClientId } : {},
+      where: activeClientId 
+        ? { clientId: activeClientId, conversationStatus: { not: "Deleted" } } 
+        : { conversationStatus: { not: "Deleted" } },
       include: {
         messages: true
       }
@@ -4200,7 +4205,8 @@ export async function checkAndRunFollowUpEngine() {
       const leads = await prisma.lead.findMany({
         where: {
           clientId: client.id,
-          status: { notIn: ["Won", "Lost"] }
+          status: { notIn: ["Won", "Lost"] },
+          conversationStatus: { not: "Deleted" }
         }
       });
 
@@ -4411,7 +4417,7 @@ router.get("/decision-insights", authenticateToken, async (req: AuthenticatedReq
 
     // Fetch all leads for this workspace
     const leads = await prisma.lead.findMany({
-      where: { clientId },
+      where: { clientId, conversationStatus: { not: "Deleted" } },
       include: {
         messages: {
           orderBy: { timestamp: "desc" },
@@ -4859,13 +4865,22 @@ router.put("/quotations/:id", authenticateToken, async (req: AuthenticatedReques
 
 router.delete("/quotations/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
+    const id = req.params.id;
+
+    // 1. Set quoteId to null in any OwnerAlerts referencing this quotation
+    await prisma.ownerAlert.updateMany({
+      where: { quoteId: id },
+      data: { quoteId: null }
+    });
+
+    // 2. Delete the quotation safely
     const deleted = await prisma.quotation.delete({
-      where: { id: req.params.id }
+      where: { id }
     });
     res.json(deleted);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Delete quotation failed:", err);
-    res.status(500).json({ error: "Failed to delete quotation" });
+    res.status(500).json({ error: err.message || "Failed to delete quotation" });
   }
 });
 
@@ -4910,6 +4925,199 @@ router.get("/public/quotations/:id", async (req: Request, res: Response): Promis
   } catch (err) {
     console.error("Failed to read public quotation detailed information:", err);
     res.status(500).json({ error: "Failed to retrieve public quotation info." });
+  }
+});
+
+
+function getSuccessHtml(title: string, message: string, isError = false) {
+  const iconHtml = isError
+    ? '<div class="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-full flex items-center justify-center">' +
+      '<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">' +
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />' +
+      '</svg>' +
+      '</div>'
+    : '<div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center">' +
+      '<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">' +
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />' +
+      '</svg>' +
+      '</div>';
+
+  return '<!DOCTYPE html>\n' +
+    '<html lang="en">\n' +
+    '<head>\n' +
+    '  <meta charset="UTF-8">\n' +
+    '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+    '  <title>' + title + '</title>\n' +
+    '  <script src="https://cdn.tailwindcss.com"></script>\n' +
+    '  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">\n' +
+    '  <style>body { font-family: \'Inter\', sans-serif; }</style>\n' +
+    '</head>\n' +
+    '<body class="bg-[#090d1e] text-slate-100 min-h-screen flex items-center justify-center p-4">\n' +
+    '  <div class="w-full max-w-md bg-slate-900/60 border border-slate-800 p-8 rounded-2xl shadow-2xl text-center space-y-6">\n' +
+    '    <div class="flex justify-center">' + iconHtml + '</div>\n' +
+    '    <div class="space-y-2">\n' +
+    '      <h1 class="text-xl font-bold tracking-tight text-white">' + title + '</h1>\n' +
+    '      <p class="text-xs text-slate-400 leading-relaxed">' + message + '</p>\n' +
+    '    </div>\n' +
+    '    <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-500 font-mono">LeadSmart Workspace Manager</div>\n' +
+    '  </div>\n' +
+    '</body>\n' +
+    '</html>';
+}
+
+// GET /api/public/owner-alerts/:id/approve - Direct WhatsApp link approval
+router.get("/public/owner-alerts/:id/approve", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const alertId = req.params.id;
+    const alert = await prisma.ownerAlert.findUnique({
+      where: { id: alertId }
+    });
+    if (!alert) {
+      return res.send(getSuccessHtml("Notification Alert Not Found", "The requested notification alert could not be found in our system.", true));
+    }
+
+    if (alert.status === "APPROVED") {
+      return res.send(getSuccessHtml("Already Approved", "This quotation has already been approved and dispatched previously. No further action is required."));
+    }
+    if (alert.status === "REJECTED") {
+      return res.send(getSuccessHtml("Quotation Already Rejected", "This request was previously rejected.", true));
+    }
+
+    // Update alert status
+    await prisma.ownerAlert.update({
+      where: { id: alertId },
+      data: { status: "APPROVED" }
+    });
+
+    if (alert.quoteId) {
+      const quote = await prisma.quotation.findUnique({
+        where: { id: alert.quoteId }
+      });
+
+      if (quote) {
+        // Set quotation status to READY
+        await prisma.quotation.update({
+          where: { id: alert.quoteId },
+          data: { status: "READY" }
+        });
+
+        // Move lead stage to Quotation Sent
+        await prisma.lead.update({
+          where: { id: alert.leadId },
+          data: { status: "Quotation Sent" }
+        });
+
+        const host = req.get('host') || 'localhost:3000';
+        const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+        const protocol = isLocal ? 'http' : 'https';
+        const pdfUrl = protocol + "://" + host + "/api/public/quotations/" + quote.id + "/pdf";
+
+        const replyContent = "📄 *Quotation Approved & Sent*\n\n" +
+          "Our quote for your inquiry is ready!\n" +
+          "Quotation ID: *" + quote.quotationNumber + "*\n" +
+          "Total Amount: *₹" + quote.grandTotal.toLocaleString("en-IN") + "*\n\n" +
+          "📥 *Download official PDF Quotation:*\n" +
+          pdfUrl + "\n\n" +
+          "You can view and secure payment or scheduling details. Let us know if you would like to proceed!";
+
+        // Simulate sending message to lead
+        await prisma.message.create({
+          data: {
+            leadId: alert.leadId,
+            direction: "OUT",
+            content: replyContent,
+            timestamp: new Date()
+          }
+        });
+
+        // Dispatch to customer real WhatsApp if configured
+        const client = await prisma.client.findFirst({
+          where: { id: quote.clientId }
+        });
+        const lead = await prisma.lead.findUnique({
+          where: { id: alert.leadId }
+        });
+        if (client && lead && client.whatsappToken && client.whatsappPhoneId && lead.phoneNumber) {
+          try {
+            const cleanPhone = lead.phoneNumber.replace(/\D/g, "");
+            if (cleanPhone) {
+              console.log("[WhatsApp Dispatch GET] Dispatching approved quote to customer " + cleanPhone);
+              await fetch("https://graph.facebook.com/v19.0/" + client.whatsappPhoneId + "/messages", {
+                method: "POST",
+                headers: {
+                  "Authorization": "Bearer " + client.whatsappToken,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  messaging_product: "whatsapp",
+                  to: cleanPhone,
+                  type: "text",
+                  text: { body: replyContent }
+                })
+              });
+            }
+          } catch (dispatchErr) {
+            console.error("[WhatsApp Dispatch GET Error]", dispatchErr);
+          }
+        }
+
+        await prisma.leadActivity.create({
+          data: {
+            leadId: alert.leadId,
+            activityType: "STATUS_CHANGE",
+            description: "Auto-dispatched Quotation PDF (" + quote.quotationNumber + ") to customer via WhatsApp following direct owner-link approval."
+          }
+        });
+      }
+    }
+
+    return res.send(getSuccessHtml("Quotation Approved!", "The quotation has been successfully approved and the official PDF document has been dispatched to the customer."));
+  } catch (error: any) {
+    return res.send(getSuccessHtml("Approval Failed", "An unexpected error occurred: " + error.message, true));
+  }
+});
+
+// GET /api/public/owner-alerts/:id/reject - Direct WhatsApp link rejection
+router.get("/public/owner-alerts/:id/reject", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const alertId = req.params.id;
+    const alert = await prisma.ownerAlert.findUnique({
+      where: { id: alertId }
+    });
+    if (!alert) {
+      return res.send(getSuccessHtml("Notification Alert Not Found", "The requested notification alert could not be found in our system.", true));
+    }
+
+    if (alert.status === "APPROVED") {
+      return res.send(getSuccessHtml("Quotation Already Approved", "This quotation was previously approved.", true));
+    }
+    if (alert.status === "REJECTED") {
+      return res.send(getSuccessHtml("Already Rejected", "This quotation has already been rejected previously."));
+    }
+
+    await prisma.ownerAlert.update({
+      where: { id: alertId },
+      data: { status: "REJECTED" }
+    });
+
+    if (alert.quoteId) {
+      await prisma.quotation.update({
+        where: { id: alert.quoteId },
+        data: { status: "DECLINED" }
+      });
+
+      await prisma.leadActivity.create({
+        data: {
+          leadId: alert.leadId,
+          activityType: "NOTE_ADDED",
+          description: "Quotation proposal request was rejected by owner via direct link."
+        }
+      });
+    }
+
+    return res.send(getSuccessHtml("Quotation Rejected", "The proposal request was successfully rejected. No documents were dispatched to the customer."));
+  } catch (error: any) {
+    return res.send(getSuccessHtml("Rejection Failed", "An unexpected error occurred: " + error.message, true));
   }
 });
 

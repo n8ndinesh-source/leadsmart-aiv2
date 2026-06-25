@@ -2023,7 +2023,55 @@ export function LeadManagementConsole() {
                                     : "bg-[#005c4b] text-white rounded-tr-none"
                               }`}
                             >
-                              <p className="whitespace-pre-wrap font-sans">{msg.content || msg.message}</p>
+                              {(() => {
+                                const rawText = msg.content || msg.message || "";
+                                const pdfUrlMatch = rawText.match(/(https?:\/\/[^\s]+?\/pdf)/i);
+                                if (pdfUrlMatch) {
+                                  const pdfUrl = pdfUrlMatch[0];
+                                  const cleanText = rawText.replace(pdfUrl, "📄 (File Attachment: Quotation PDF)");
+                                  const qtMatch = rawText.match(/QT-\d+/i);
+                                  const fileName = qtMatch ? `Quotation_${qtMatch[0].toUpperCase()}.pdf` : "Quotation_Proposal.pdf";
+
+                                  return (
+                                    <div className="space-y-2">
+                                      <p className="whitespace-pre-wrap font-sans">{cleanText}</p>
+                                      <a
+                                        href={pdfUrl}
+                                        download={fileName}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center justify-between p-3.5 rounded-xl border transition-all active:scale-95 cursor-pointer hover:shadow-md ${
+                                          theme === "light"
+                                            ? "bg-emerald-50 border-emerald-200/50 hover:bg-emerald-100/60"
+                                            : "bg-[#1f2c34]/50 border-emerald-900/30 hover:bg-[#1f2c34]"
+                                        }`}
+                                      >
+                                        <div className="flex items-center space-x-3 overflow-hidden">
+                                          <div className="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                                            <span className="text-rose-500 font-bold text-xs">PDF</span>
+                                          </div>
+                                          <div className="text-left min-w-0">
+                                            <p className={`font-semibold text-xs truncate ${theme === "light" ? "text-slate-800" : "text-white"}`}>
+                                              {fileName}
+                                            </p>
+                                            <p className={`text-[10px] font-light ${theme === "light" ? "text-slate-500" : "text-slate-400"}`}>
+                                              Direct Document Download
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className={`p-1.5 rounded-lg shrink-0 ${
+                                          theme === "light" ? "bg-emerald-600/10 text-emerald-600" : "bg-emerald-500/10 text-emerald-400"
+                                        }`}>
+                                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                          </svg>
+                                        </div>
+                                      </a>
+                                    </div>
+                                  );
+                                }
+                                return <p className="whitespace-pre-wrap font-sans">{rawText}</p>;
+                              })()}
                               <span className={`block text-[8px] font-mono text-right mt-1 leading-none select-none opacity-80 ${
                                 theme === "light" ? "text-slate-500" : "text-slate-350"
                               }`}>

@@ -462,15 +462,18 @@ export default function QuotationTemplatesPanel() {
 
                 {/* Logo and company title summary */}
                 <div className="flex justify-between items-start pt-2">
-                  <div className="space-y-1">
-                    {selectedTemplate.logo ? (
-                      <img src={selectedTemplate.logo} alt="Company logo" className="h-8 max-w-[120px] object-contain" />
-                    ) : (
-                      <div className="h-6 w-16 bg-slate-100 flex items-center justify-center text-[8px] italic text-slate-400 rounded">No Logo</div>
-                    )}
-                    <h3 className="text-xs font-extrabold text-indigo-900 tracking-tight">{selectedTemplate.companyName}</h3>
-                    <p className="text-[8px] text-slate-500 line-height-none mt-0.5">Corporate HQ, Industrial Estate Phase 3</p>
-                  </div>
+                  {!selectedTemplate.headerBanner ? (
+                    <div className="space-y-1">
+                      {selectedTemplate.logo ? (
+                        <img src={selectedTemplate.logo} alt="Company logo" className="h-8 max-w-[120px] object-contain" />
+                      ) : (
+                        <div className="h-6 w-16 bg-slate-100 flex items-center justify-center text-[8px] italic text-slate-400 rounded">No Logo</div>
+                      )}
+                      <h3 className="text-xs font-extrabold text-indigo-900 tracking-tight">{selectedTemplate.companyName}</h3>
+                    </div>
+                  ) : (
+                    <div />
+                  )}
                   <div className="text-right">
                     <h2 className="text-sm font-extrabold text-indigo-950 tracking-tight uppercase">Quotation</h2>
                     <p className="text-[8px] text-slate-500 font-medium">Quotation #: <span className="font-bold text-slate-800">QT-2026-X11</span></p>

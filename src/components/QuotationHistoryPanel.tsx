@@ -16,8 +16,9 @@ import {
   FileDown, 
   Layers, 
   Eye, 
-  DollarSign, 
-  User 
+  IndianRupee, 
+  User,
+  Trash2
 } from "lucide-react";
 
 export default function QuotationHistoryPanel() {
@@ -28,6 +29,7 @@ export default function QuotationHistoryPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,6 +57,19 @@ export default function QuotationHistoryPanel() {
     navigator.clipboard.writeText(text);
     setSuccessMessage("PDF Link copied to clipboard!");
     setTimeout(() => setSuccessMessage(""), 3000);
+  };
+
+  const handleDeleteQuotation = async (id: string) => {
+    try {
+      await api.delete(`/quotations/${id}`);
+      setSuccessMessage("Quotation deleted successfully.");
+      setTimeout(() => setSuccessMessage(""), 3000);
+      setDeletingId(null);
+      loadQuotationsHistory();
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to delete quotation.");
+      setTimeout(() => setErrorMessage(""), 4000);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -177,7 +192,7 @@ export default function QuotationHistoryPanel() {
             <p className="text-2xl font-bold text-indigo-400 font-mono">₹{totalValue.toLocaleString("en-IN")}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-indigo-600/15 flex items-center justify-center border border-indigo-500/30">
-            <DollarSign className="w-5 h-5 text-indigo-400" />
+            <IndianRupee className="w-5 h-5 text-indigo-400" />
           </div>
         </div>
       </div>
@@ -319,24 +334,52 @@ export default function QuotationHistoryPanel() {
                       </td>
                       <td className="px-5 py-4.5 text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <a
-                            href={downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md transition-all cursor-pointer"
-                            title="Open / Download formal PDF"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>PDF</span>
-                          </a>
+                          {deletingId === q.id ? (
+                            <div className="flex items-center space-x-1.5 bg-slate-900/80 p-1 border border-slate-700 rounded-lg shrink-0">
+                              <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider px-1">Sure?</span>
+                              <button
+                                onClick={() => handleDeleteQuotation(q.id)}
+                                className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold rounded transition-colors cursor-pointer"
+                              >
+                                Yes
+                              </button>
+                              <button
+                                onClick={() => setDeletingId(null)}
+                                className="px-2 py-1 bg-slate-800 hover:bg-slate-750 text-slate-300 text-[10px] font-medium rounded transition-colors cursor-pointer"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <a
+                                href={downloadUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md transition-all cursor-pointer"
+                                title="Open / Download formal PDF"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span>PDF</span>
+                              </a>
 
-                          <button
-                            onClick={() => copyToClipboard(downloadUrl)}
-                            className="p-1.5 bg-slate-950/40 hover:bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                            title="Copy PDF download URL link"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
+                              <button
+                                onClick={() => copyToClipboard(downloadUrl)}
+                                className="p-1.5 bg-slate-950/40 hover:bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                                title="Copy PDF download URL link"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => setDeletingId(q.id)}
+                                className="p-1.5 bg-rose-950/30 hover:bg-rose-900/60 border border-rose-900/40 hover:border-rose-700 text-rose-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                                title="Permanently delete this quotation"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
