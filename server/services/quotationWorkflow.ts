@@ -83,15 +83,100 @@ Do not include any markdown format tags like \`\`\`json. Return only the raw JSO
     
     return parsed;
   } catch (error) {
-    console.error("[AI Spec Extractor Error] Failed to extract specifications:", error);
-    return {
-      isProductRequest: false,
-      product: null,
-      size: null,
-      quantity: null
-    };
+    console.error("[AI Spec Extractor Error] Failed to extract specifications with Gemini. Applying regex fallback...", error);
+    try {
+      return parseSpecsFallback(message);
+    } catch (fallbackError) {
+      console.error("[AI Spec Extractor Fallback Error] Regex fallback also failed:", fallbackError);
+      return {
+        isProductRequest: false,
+        product: null,
+        size: null,
+        quantity: null
+      };
+    }
   }
 }
+
+/**
+ * Deterministic regex fallback parsing for extracting specs when the AI is down.
+ */
+function parseSpecsFallback(message: string): ExtractedSpecs {
+  console.log(`[AI Spec Extractor Fallback] Attempting deterministic regex parsing on: "${message}"`);
+  
+  const specs: ExtractedSpecs = {
+    isProductRequest: false,
+    product: null,
+    size: null,
+    quantity: null,
+    productCode: null,
+    deliveryAddress: null,
+    isCustomRequest: false,
+    customProductDetails: null
+  };
+
+  const lowMsg = message.toLowerCase();
+
+  // 1. Extract Pincode (6-digit Indian PIN)
+  const pincodeMatch = message.match(/\b\d{6}\b/) || message.match(/(?:pincode|pin|zip|pincod)\s*:?\s*(\d+)/i);
+  if (pincodeMatch) {
+    specs.deliveryAddress = pincodeMatch[0].replace(/[^0-9]/g, "");
+  }
+
+  // 2. Extract Quantity
+  // Match numbers followed by piece/pcs/unit/qty/etc.
+  const qtyPattern = /(\d+)\s*(?:piece|pcs|unit|qty|quantity|packet|box|no|nos|plate|bowl|bag|cup)/i;
+  const qtyMatch = message.match(qtyPattern);
+  if (qtyMatch) {
+    specs.quantity = parseInt(qtyMatch[1], 10);
+  } else {
+    // Look for any number that is NOT a 6-digit pincode and has 2-6 digits
+    const allNumbers = message.match(/\b\d{2,5}\b/g) || message.match(/\b\d{7,8}\b/g);
+    if (allNumbers) {
+      // Find the first one that isn't the pincode
+      for (const numStr of allNumbers) {
+        if (numStr !== specs.deliveryAddress) {
+          specs.quantity = parseInt(numStr, 10);
+          break;
+        }
+      }
+    }
+  }
+
+  // 3. Extract Product Code
+  // Look for "code TVE10BP" or similar
+  const codeExplicitMatch = message.match(/(?:code|sku|id)\s*:?\s*([A-Za-z0-9_-]+)/i);
+  if (codeExplicitMatch) {
+    specs.productCode = codeExplicitMatch[1].toUpperCase();
+  } else {
+    // Look for uppercase alphanumeric words with length >= 4 that contain both letters and numbers
+    const words = message.split(/\s+/);
+    for (const word of words) {
+      const cleanWord = word.replace(/[^A-Za-z0-9_-]/g, "");
+      if (cleanWord.length >= 4 && /[A-Za-z]/.test(cleanWord) && /[0-9]/.test(cleanWord)) {
+        specs.productCode = cleanWord.toUpperCase();
+        break;
+      }
+    }
+  }
+
+  // 4. Extract Product Name
+  const productKeywords = ["plate", "bowl", "bag", "box", "cup", "spoon", "fork", "knife", "container", "clamshell"];
+  for (const kw of productKeywords) {
+    if (lowMsg.includes(kw)) {
+      specs.product = kw.charAt(0).toUpperCase() + kw.slice(1);
+      break;
+    }
+  }
+
+  if (specs.productCode || specs.product) {
+    specs.isProductRequest = true;
+  }
+
+  console.log(`[AI Spec Extractor Fallback] Regex result:`, specs);
+  return specs;
+}
+
 
 /**
  * Processes an inbound client message to assess Product Existing vs Product Missing flows.

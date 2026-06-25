@@ -62,6 +62,11 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if ((response.status === 401 || response.status === 403) && getStoredToken()) {
+      clearStoredToken();
+      clearStoredUser();
+      window.location.href = "/";
+    }
     throw new Error(data.error || `HTTP error ${response.status}`);
   }
 
