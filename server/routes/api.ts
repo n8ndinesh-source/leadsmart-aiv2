@@ -3260,10 +3260,15 @@ router.post("/owner-alerts/:id/resolve-custom", authenticateToken, async (req: A
     const grandTotal = subtotal + gstAmount;
     const quotationNumber = `QT-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const defaultTemplate = await prisma.quotationTemplate.findFirst({
+      where: { clientId: client.id }
+    });
+
     const quote = await prisma.quotation.create({
       data: {
         clientId: client.id,
         leadId: lead.id,
+        templateId: defaultTemplate?.id || null,
         quotationNumber,
         status: "READY",
         products: JSON.stringify([{
@@ -3413,11 +3418,16 @@ router.post("/leads/:leadId/resolve-custom-order", authenticateToken, async (req
     const grandTotal = subtotal + gstAmount;
     const quotationNumber = `QT-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const defaultTemplate = await prisma.quotationTemplate.findFirst({
+      where: { clientId: client.id }
+    });
+
     // 3. Generate the quotation in PENDING_APPROVAL status (which means it's ready for owner approval)
     const quote = await prisma.quotation.create({
       data: {
         clientId: client.id,
         leadId: lead.id,
+        templateId: defaultTemplate?.id || null,
         quotationNumber,
         status: "PENDING_APPROVAL",
         products: JSON.stringify([{
@@ -4885,6 +4895,11 @@ router.get("/public/quotations/:id", async (req: Request, res: Response): Promis
         where: { id: quotation.templateId }
       });
     }
+    if (!template && client) {
+      template = await prisma.quotationTemplate.findFirst({
+        where: { clientId: client.id }
+      });
+    }
 
     res.json({
       quotation,
@@ -4911,23 +4926,23 @@ router.get("/public/quotations/:id/pdf", async (req: Request, res: Response): Pr
     }
 
     let pdfBuffer: Buffer | null = null;
-    if (quotation.pdfBase64) {
-      pdfBuffer = Buffer.from(quotation.pdfBase64, "base64");
-    } else {
-      const lead = await prisma.lead.findUnique({ where: { id: quotation.leadId } });
-      const client = await prisma.client.findUnique({ where: { id: quotation.clientId } });
-      let template = null;
-      if (quotation.templateId) {
-        template = await prisma.quotationTemplate.findUnique({ where: { id: quotation.templateId } });
-      }
-      if (client && lead) {
-        pdfBuffer = await generateQuotationPdf(quotation, client, lead, template);
-        // Save base64 representation to cache
-        await prisma.quotation.update({
-          where: { id: quotation.id },
-          data: { pdfBase64: pdfBuffer.toString("base64") }
-        });
-      }
+    const lead = await prisma.lead.findUnique({ where: { id: quotation.leadId } });
+    const client = await prisma.client.findUnique({ where: { id: quotation.clientId } });
+    let template = null;
+    if (quotation.templateId) {
+      template = await prisma.quotationTemplate.findUnique({ where: { id: quotation.templateId } });
+    }
+    if (!template && client) {
+      template = await prisma.quotationTemplate.findFirst({ where: { clientId: client.id } });
+    }
+
+    if (client && lead) {
+      pdfBuffer = await generateQuotationPdf(quotation, client, lead, template);
+      // Save base64 representation to cache
+      await prisma.quotation.update({
+        where: { id: quotation.id },
+        data: { pdfBase64: pdfBuffer.toString("base64") }
+      });
     }
 
     if (!pdfBuffer) {

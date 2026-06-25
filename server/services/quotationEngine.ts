@@ -89,7 +89,13 @@ export async function processScheduledQuotationDeliveries() {
     for (const quote of pendingQuotations) {
       const lead = quote.lead;
       const client = lead.client;
-      const template = quote.template;
+      let template = quote.template;
+
+      if (!template && client) {
+        template = await prisma.quotationTemplate.findFirst({
+          where: { clientId: client.id }
+        });
+      }
 
       const companyName = template?.companyName || client?.companyName || "LeadSmart Customer";
       const leadName = lead.name;

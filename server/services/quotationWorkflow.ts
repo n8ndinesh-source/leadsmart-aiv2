@@ -310,11 +310,17 @@ Return the matching ID as JSON {\"matchedId\": \"some-uuid\" | null}. If no high
 
       const quotationNumber = `QT-${Math.floor(1000 + Math.random() * 9000)}`;
 
+      // Fetch the default template for the client to ensure the quotation is created with correct branding design
+      const defaultTemplate = await prisma.quotationTemplate.findFirst({
+        where: { clientId: client.id }
+      });
+
       // Automatically generate quotation record (PENDING_APPROVAL status)
       const quote = await prisma.quotation.create({
         data: {
           clientId: client.id,
           leadId: lead.id,
+          templateId: defaultTemplate?.id || null,
           quotationNumber,
           status: "PENDING_APPROVAL", // custom status pending owner choice
           products: JSON.stringify([{
