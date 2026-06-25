@@ -2953,11 +2953,19 @@ router.post("/owner-alerts/:id/approve", authenticateToken, async (req: Authenti
           data: { status: "Quotation Sent" }
         });
 
+        const host = req.get('host') || 'localhost:3000';
+        const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+        const protocol = isLocal ? 'http' : 'https';
+        const pdfUrl = `${protocol}://${host}/api/public/quotations/${quote.id}/pdf`;
+
         const replyContent = `📄 *Quotation Approved & Sent*
 
 Our quote for your inquiry is ready!
 Quotation ID: *${quote.quotationNumber}*
 Total Amount: *₹${quote.grandTotal.toLocaleString("en-IN")}*
+
+📥 *Download official PDF Quotation:*
+${pdfUrl}
 
 You can view and secure payment or scheduling details. Let us know if you would like to proceed!`;
 
@@ -3122,6 +3130,11 @@ router.post("/owner-alerts/:id/edit", authenticateToken, async (req: Authenticat
         });
 
         // Simulate sending quotation PDF 
+        const host = req.get('host') || 'localhost:3000';
+        const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+        const protocol = isLocal ? 'http' : 'https';
+        const pdfUrl = `${protocol}://${host}/api/public/quotations/${quote.id}/pdf`;
+
         await prisma.message.create({
           data: {
             leadId: alert.leadId,
@@ -3131,6 +3144,9 @@ router.post("/owner-alerts/:id/edit", authenticateToken, async (req: Authenticat
 An updated quota has been calculated based on requested specs.
 Quotation ID: *${quote.quotationNumber}*
 Total Custom Amount: *₹${updatedGrandTotal.toLocaleString("en-IN")}*
+
+📥 *Download official PDF Quotation:*
+${pdfUrl}
 
 Our customized quotation document has been delivered via WhatsApp.`,
             timestamp: new Date()
@@ -3288,6 +3304,11 @@ router.post("/owner-alerts/:id/resolve-custom", authenticateToken, async (req: A
     });
 
     // 5. Send customer message simulation
+    const host = req.get('host') || 'localhost:3000';
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+    const protocol = isLocal ? 'http' : 'https';
+    const pdfUrl = `${protocol}://${host}/api/public/quotations/${quote.id}/pdf`;
+
     await prisma.message.create({
       data: {
         leadId: lead.id,
@@ -3297,6 +3318,9 @@ router.post("/owner-alerts/:id/resolve-custom", authenticateToken, async (req: A
 Your custom requested item *${productName}* has been processed.
 Quotation ID: *${quotationNumber}*
 Total Amount: *₹${grandTotal.toLocaleString("en-IN")}*
+
+📥 *Download official PDF Quotation:*
+${pdfUrl}
 
 An official Quotation document has been compiled and dispatched via WhatsApp.`,
         timestamp: new Date()
@@ -4520,6 +4544,7 @@ router.get("/decision-insights", authenticateToken, async (req: AuthenticatedReq
 // ==========================================
 
 import { calculateTotals } from "../services/quotationEngine.js";
+import { generateQuotationPdf } from "../services/pdfGenerator.js";
 
 async function getActiveClientId(req: AuthenticatedRequest): Promise<string | null> {
   if (req.user?.role === "CLIENT") {
@@ -4644,6 +4669,26 @@ router.delete("/quotation-templates/:id", authenticateToken, async (req: Authent
 // ==========================================
 // LEAD QUOTATIONS CRUD API
 // ==========================================
+
+router.get("/quotations", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const clientId = await getActiveClientId(req);
+    if (!clientId) return res.status(401).json({ error: "Access denied." });
+
+    const quotations = await prisma.quotation.findMany({
+      where: { clientId },
+      include: { 
+        lead: true,
+        template: true 
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(quotations);
+  } catch (err) {
+    console.error("Fetch all quotations failed:", err);
+    res.status(500).json({ error: "Failed to load quotations history" });
+  }
+});
 
 router.get("/leads/:leadId/quotations", authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
@@ -4850,6 +4895,51 @@ router.get("/public/quotations/:id", async (req: Request, res: Response): Promis
   } catch (err) {
     console.error("Failed to read public quotation detailed information:", err);
     res.status(500).json({ error: "Failed to retrieve public quotation info." });
+  }
+});
+
+// GET /api/public/quotations/:id/pdf - Public PDF render/download endpoint
+router.get("/public/quotations/:id/pdf", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const quotation = await prisma.quotation.findUnique({
+      where: { id }
+    });
+
+    if (!quotation) {
+      return res.status(404).send("Quotation not found.");
+    }
+
+    let pdfBuffer: Buffer | null = null;
+    if (quotation.pdfBase64) {
+      pdfBuffer = Buffer.from(quotation.pdfBase64, "base64");
+    } else {
+      const lead = await prisma.lead.findUnique({ where: { id: quotation.leadId } });
+      const client = await prisma.client.findUnique({ where: { id: quotation.clientId } });
+      let template = null;
+      if (quotation.templateId) {
+        template = await prisma.quotationTemplate.findUnique({ where: { id: quotation.templateId } });
+      }
+      if (client && lead) {
+        pdfBuffer = await generateQuotationPdf(quotation, client, lead, template);
+        // Save base64 representation to cache
+        await prisma.quotation.update({
+          where: { id: quotation.id },
+          data: { pdfBase64: pdfBuffer.toString("base64") }
+        });
+      }
+    }
+
+    if (!pdfBuffer) {
+      return res.status(404).send("Could not generate or fetch PDF for this quotation.");
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="Quotation_${quotation.quotationNumber}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (err: any) {
+    console.error("Failed to serve public quotation PDF:", err);
+    return res.status(500).send("Failed to serve public quotation PDF: " + err.message);
   }
 });
 

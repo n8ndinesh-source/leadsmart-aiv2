@@ -174,3 +174,35 @@ export interface FollowUp {
   lead?: Lead;
 }
 
+export interface Quotation {
+  id: string;
+  clientId: string;
+  leadId: string;
+  templateId?: string | null;
+  quotationNumber: string;
+  status: string; // DRAFT, READY, SENT, VIEWED, ACCEPTED, REJECTED
+  products: string; // JSON string
+  subtotal: number;
+  discountPercent: number;
+  discountAmount: number;
+  gstPercent: number;
+  gstAmount: number;
+  taxPercent: number;
+  taxAmount: number;
+  deliveryCharges: number;
+  grandTotal: number;
+  deliveryTerms?: string | null;
+  paymentTerms?: string | null;
+  validity?: string | null;
+  additionalNotes?: string | null;
+  scheduledAt?: string | null;
+  deliveredAt?: string | null;
+  viewedAt?: string | null;
+  acceptedAt?: string | null;
+  rejectedAt?: string | null;
+  pdfBase64?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lead?: Lead;
+}
+

@@ -12,6 +12,7 @@ import AIAssistantCoPilot from "../components/AIAssistantCoPilot";
 import OwnerSimulatorPanel from "../components/OwnerSimulatorPanel";
 import QuotationTemplatesPanel from "../components/QuotationTemplatesPanel";
 import ProductsPanel from "../components/ProductsPanel";
+import QuotationHistoryPanel from "../components/QuotationHistoryPanel";
 import { 
   BarChart3, 
   MessageSquare, 
@@ -65,7 +66,7 @@ export default function ClientDashboard() {
   const { theme, toggleTheme } = useTheme();
 
   // Tabs
-  const [activeTab, setActiveTab ] = useState<"dashboard" | "leads" | "followups" | "ai-insights" | "quotation-templates" | "products" | "profile" | "settings">("dashboard");
+  const [activeTab, setActiveTab ] = useState<"dashboard" | "leads" | "followups" | "ai-insights" | "quotation-templates" | "products" | "profile" | "settings" | "quotations">("dashboard");
   
   // States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -694,6 +695,18 @@ export default function ClientDashboard() {
             </button>
 
             <button
+              onClick={() => { setActiveTab("quotations"); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
+                activeTab === "quotations"
+                  ? "bg-indigo-600/10 text-indigo-400 border-l-2 border-indigo-500 pl-2"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900/40"
+              }`}
+            >
+              <FileText className={`w-4 h-4 transition-colors ${activeTab === "quotations" ? "text-indigo-400" : "text-slate-400"}`} />
+              <span>Quotation History</span>
+            </button>
+
+            <button
               onClick={() => { setActiveTab("products"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg font-medium transition-all cursor-pointer ${
                 activeTab === "products"
@@ -792,7 +805,8 @@ export default function ClientDashboard() {
                 {activeTab === "followups" && "AUTOMATED SALES FOLLOW-UP CONSOLE"}
                 {activeTab === "ai-insights" && "AI DECISION ENGINE & INSIGHTS"}
                 {activeTab === "quotation-templates" && "QUOTATION TEMPLATE MODULE"}
-                 {activeTab === "products" && "DYNAMIC PRODUCT CATALOG ENGINE"}
+                {activeTab === "quotations" && "QUOTATION HISTORY & ARCHIVE"}
+                {activeTab === "products" && "DYNAMIC PRODUCT CATALOG ENGINE"}
                 {activeTab === "profile" && "CONNECTED COMPANY SPECIFICATIONS"}
                 {activeTab === "settings" && "WORKSPACE LOGINS & CONTACT DETAILS"}
               </h1>
@@ -802,6 +816,7 @@ export default function ClientDashboard() {
                 {activeTab === "followups" && "Track inactivity trigger rules, dynamic AI reminders histories, and restore missed revenues."}
                 {activeTab === "ai-insights" && "Evaluate high-intent scoring, response strategies, conversion analytics, and revenue optimizations on WhatsApp."}
                 {activeTab === "quotation-templates" && "Design quotation branding, banners, logo, and watermarks for business contracts."}
+                {activeTab === "quotations" && "View compiled quotation summaries, audit history log entries, and download formal PDF agreements."}
                 {activeTab === "products" && "Configure customizable product schemas, manage inventories, and sync master values with AI."}
                 {activeTab === "profile" && "Verify subscription billing lines, price points, and active business quotas."}
                 {activeTab === "settings" && "Configure contact emails, physical coordinates, and change account passwords."}
@@ -971,6 +986,11 @@ export default function ClientDashboard() {
             {/* TAB 3.8: MASTER PRODUCTS CATALOG MANAGEMENT */}
             {activeTab === "products" && (
               <ProductsPanel businessType={businessType} />
+            )}
+
+            {/* TAB 3.85: QUOTATION HISTORY PANEL */}
+            {activeTab === "quotations" && (
+              <QuotationHistoryPanel />
             )}
 
             {/* TAB 4: COMPANY PROFILE VIEWER (NEW PHASE 2 REQUIREMENT!) */}
